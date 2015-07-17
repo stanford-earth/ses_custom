@@ -1,0 +1,64 @@
+<?php
+
+// return the vocabulary id number for a taxonomy vocabulary machine name
+function _ses_custom_get_personnel_vid($machine_name = '') {
+    $vid = FALSE;
+    $vocabs = taxonomy_get_vocabularies();
+    foreach ($vocabs as $vocabulary) {
+        if (isset($vocabulary->machine_name) && $vocabulary->machine_name === $machine_name) {
+            $vid = $vocabulary->vid;
+            break;
+        }
+    }
+    return $vid;
+}
+
+/* 
+ * implement hook_install
+ *
+ * create the profile_personnel_types taxonomy if it does not yet exist
+ * and make sure it contains all the terms that we need
+ *
+ */
+function ses_custom_install() {
+
+    $machine_name = 'profile_personnel_types';
+    $vid = _ses_custom_get_personnel_vid($machine_name);
+
+    if ($vid === FALSE) {
+        // create personnel types taxonomy vocabulary
+        taxonomy_vocabulary_save((object) array(
+            'name' => 'Profile Personnel Types',
+            'machine_name' => $machine_name,
+        ));
+        $vid = _ses_custom_get_personnel_vid($machine_name);
+    }
+
+    if ($vid) {
+        // get the vocabulary terms and for each needed term in the array below, make sure
+        // that term is in the vocabulary, creating it if needed.
+        $tree = taxonomy_get_tree($vid);
+        $weight = 0;
+        foreach (array('All Faculty','Regular Faculty','Emeritus Faculty','Affiliated Faculty',
+                       'All Students','All Graduate Students','Ph.D. Students','Masters Students',
+                       'Undergraduate Students','Post Doctoral Scholar','All Staff',
+                       'Administrative Staff','Research Staff','Teaching Staff') as $term_name) {
+            $tid = FALSE;
+            foreach ($tree as $term) {
+                if (isset($term->name) && $term->name === $term_name) {
+                    $tid = $term->tid;
+                    break;
+                }
+            }
+            if ($tid === FALSE) {
+                taxonomy_term_save((object) array(
+                    'vid' => $vid,
+                    'name' => $term_name,
+                    'weight' => $weight,
+                ));
+                $weight += 1;
+            }
+        }
+    }
+
+}

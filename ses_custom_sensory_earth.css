@@ -1,0 +1,17 @@
+.sensory-earth-images {
+    left: 0;
+}
+
+.sensory-earth-list {
+    margin: 0 0 0 -1px;
+    padding: 0;
+}
+
+.sensory-earth-list-item {
+    list-style-type: none;
+    display: inline-block;
+}
+
+.views-field-field-sensory-earth-fade-image {
+    display: none;
+}

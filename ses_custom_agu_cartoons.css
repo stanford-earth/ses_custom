@@ -1,0 +1,39 @@
+.view-agu-cartoons-2014 .views-field-body {
+    border: 1px solid black;
+}
+
+.view-agu-cartoons-2014 .views-field-title h1 {
+    text-align: center;
+    position: relative;
+    font-size: 24px;
+    color: black;
+}
+
+.view-agu-cartoons-2014 .item-list ul {
+    margin: 0 0 2em;
+}
+
+.view-agu-cartoons-2014 .views-field-body img {
+    display: block;
+    margin: auto;
+    padding-top: 10px;
+}
+
+.view-agu-cartoons-2014 .views-field-nid a {
+    display: block;
+    padding: 10px 0;
+    border-bottom: none;
+}
+
+.view-agu-cartoons-2014 .views-field-nid a:hover {
+    border-bottom: none;
+}
+
+.view-agu-cartoons-2014 .easy_social_box {
+    display: table;
+    margin: auto;
+}
+
+#block-block-42 {
+    margin-top: -20px;
+}
