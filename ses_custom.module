@@ -334,16 +334,29 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL) {
       } else {
           $secondary = strtolower($secondary_name);
       }
-      $secondary_affils[$secondary_name] = _ses_custom_get_workgroup_members(
+      $wg_members = _ses_custom_get_workgroup_members(
           'earthsci:'.$secondary.'-secondary-affiliates', $ses_mais_crt_path, $ses_mais_key_path);
+      if ($wg_members === FALSE) {
+          watchdog('ses_custom','Unable to connect to Workgroup Manager. Halting process.');
+          drupal_set_message('Unable to connect to Workgroup Manager. Halting Process.','error');
+          return FALSE;
+      } else {
+          $secondary_affils[$secondary_name] = $wg_members;
+      }
   }
   $research_affils = array();
   $groups = taxonomy_get_tree(1);
   foreach ($groups as $group) {
       if ($group->parents[0] > 0) {
-          
-          $research_affils[$group->name] = _ses_custom_get_workgroup_members('earthsci:web-rg-'.$group->name,
+          $rg_members = _ses_custom_get_workgroup_members('earthsci:web-rg-'.$group->name,
               $ses_mais_crt_path, $ses_mais_key_path);
+          if ($rg_members === FALSE) {
+              watchdog('ses_custom','Unable to connect to Workgroup Manager. Halting process.');
+              drupal_set_message('Unable to connect to Workgroup Manager. Halting process.','error');
+              return FALSE;
+          } else {
+              $research_affils[$group->name] = $rg_members;
+          }
       }
   }
 
@@ -420,8 +433,11 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
     global $ses_mais_crt_path, $ses_mais_key_path;
     // get the workgroup members as an array
     $wg_members = _ses_custom_get_workgroup_members($group,$ses_mais_crt_path, $ses_mais_key_path);
-    if (empty($wg_members)) { 
-        watchdog('ses_custom','Empty or unable to get workgroup members for ' . $group);
+    if ($wg_members === FALSE) {
+        watchdog('ses_custom','Unable to get workgroup members for ' . $group);
+        $wg_count = FALSE;
+    } else if (empty($wg_members)) {
+        watchdog('ses_custom','Empty workgroup. No members for ' . $group);
         $wg_count = 0;
     } else {
         $wg_count = count($wg_members);
@@ -797,7 +813,7 @@ function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_
 
     // make sure we are passed paths to the cert files
     if (empty($cert_file) || empty($key_file)) {
-        return array();
+        return FALSE;
     }
 
     // create the URL to access the workgroup, from variables set in settings.php
@@ -828,7 +844,7 @@ function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_
         // if $output is false, report a curl error
         $curl_error = 'Curl Error: ' . curl_error($ch);
         watchdog('ses_custom',$curl_error);
-        return array();
+        return FALSE;
     } else {
         // if we have output, parse it and create an array to return
         $members = array();
@@ -869,9 +885,13 @@ function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_
         if (!empty($index['WORKGROUP']) && count($index['WORKGROUP']) > 0) {
             foreach ($index['WORKGROUP'] as $key) {
                 if ($key < $first_admin && isset($vals[$key]['attributes']['NAME'])) {
-                    $members = array_merge($members,
-                        _ses_custom_get_workgroup_members($vals[$key]['attributes']['NAME'],
-                            $cert_file,$key_file));
+                    $next_members = _ses_custom_get_workgroup_members($vals[$key]['attributes']['NAME'],
+                            $cert_file,$key_file);
+                    if ($next_members === FALSE) {
+                        return FALSE;
+                    } else {
+                        $members = array_merge($members,$next_members);
+                    }
                 }
             }
         }
@@ -1134,7 +1154,11 @@ function ses_custom_add_sunet_user_form_submit($form, &$form_state) {
         $workgroup = 'earthsci:'.$affil.'-'.$ptype;
         $sunet = $form_state['values']['user_list'];
 
-        ses_custom_ses_cap_lite_preprocess_all($sunet);
+        if (!ses_custom_ses_cap_lite_preprocess_all($sunet)) {
+            drupal_set_message('Please try again later.','error');
+            drupal_goto($base_url . '/add_sunet_user');
+        };
+
         global $base_url;
         if (ses_custom_ses_cap_lite_preprocess_sunet($sunet,$workgroup)) {
             drupal_goto($base_url.'/update_profile/'.$sunet);
