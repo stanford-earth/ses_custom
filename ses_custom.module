@@ -745,7 +745,11 @@ function _ses_custom_get_workgroup_affiliation($workgroup_name=NULL) {
     $ptype = substr($workgroup_name,$dash+1);
     if (strcmp($affil,'earthsci:deans') === 0) {
         $affil_str = "Dean's Office";
-        $ptype_str = 'Administrative Staff';
+        if ($ptype === 'office-faculty') {
+	    $ptype_str = 'Faculty - Regular';
+        } else {
+            $ptype_str = 'Administrative Staff';
+        }
     } else {
         switch ($affil) {
             case 'earthsci:eess':
