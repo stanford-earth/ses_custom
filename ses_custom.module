@@ -553,7 +553,6 @@ function _ses_custom_update_single_account($sunet = '', $uid = NULL, $affil_data
         }
     }
     $edit = array('status'=>1,
-        'name'=>$wg_member['account_name'],
         'field_personnel_type' => array('und'=>array(array('value'=>$affil_data['ptype']))),
         'field_ses_associate_type' => $associate_type,
         'field_primary_affiliations' => array('und'=>array(array('value'=>$affil_data['affil']))),
@@ -561,6 +560,13 @@ function _ses_custom_update_single_account($sunet = '', $uid = NULL, $affil_data
         'field_ses_research_group'=>$research_array,
         'field_import_workgroup'=>array('und'=>array(array('value'=>$group))),
         'field_account_directory_name'=>array('und'=>array(array('value'=>$wg_member['directory_name']))));
+
+    // only set the account name if empty
+    if (empty($user->name)) $edit['name'] = $wg_member['account_name'];
+    if (empty($user->field_cap_sunet_id)) {
+        $edit['field_cap_sunet_id'] = array(LANGUAGE_NONE=>array(array('value'=>$sunet, 'format'=>variable_get('ses_cap_lite_filter_format',filter_fallback_format()))));
+    }    
+
     $user = user_save($user,$edit);
     return $uid;
 }
