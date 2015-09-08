@@ -250,7 +250,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
 
         // set up some information and links at the top of the form
         if (isset($form['#user']->field_cap_profile_link[LANGUAGE_NONE][0]['value'])) {
-            $cap_verbiage ='<br />Only a small number of profile fields may be edited on this page. The remainder come from either your directory information at <a "href=https://stanfordyou.stanford.edu">StanfordYou</a> or your profile on the Stanford Profiles system which may be edited by clicking this button:<br /><a href="https://cap.stanford.edu/profiles/auth/frdAuthActionServlet?choiceId=authFacProfile&fid='.$form['#user']->field_cap_profile_id[LANGUAGE_NONE][0]['value'].'" class="button">Edit Stanford Profile</a>';
+            $cap_verbiage ='<br />Only a small number of profile fields may be edited on this page. The remainder come from either your directory information at <a "href=https://stanfordyou.stanford.edu">StanfordYou</a> or your profile on the Stanford Profiles system which may be edited by clicking this button:<br /><a href="https://cap.stanford.edu/profiles/auth/edit" class="button">Edit Stanford Profile</a><br />Note: if you are editing a profile for someone else, this button will bring you to *your* Stanford profile.';
             $cap_verbiage .= '<br /><br />After editing your information in StanfordYou or the Stanford Profiles system ';
         } else {
             $cap_verbiage = '<br />Most of the information on this profile page comes from your directory information at <"href=https://stanfordyou.stanford.edu">StanfordYou</a>';
