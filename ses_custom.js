@@ -21,7 +21,7 @@
         $('#edit-field-ses-research-group .hierarchical-select').hide();
         $('#edit-field-ses-research-group .dropbox-remove').hide();
     });
-
+    /*
     function _ses_set_secondary_checkboxes(selVal) {
         // find the secondary affil checkbox that matches the value of the primary affil
         var findVal = 'input[name="field_secondary_affiliations[und][' + selVal + ']"]';
@@ -32,5 +32,6 @@
         $(fieldName).find('input[type=checkbox]:disabled').prop('disabled',false);
         $(fieldName).find(findVal).prop('disabled',true);
     }
+    */
 
 }(jQuery));

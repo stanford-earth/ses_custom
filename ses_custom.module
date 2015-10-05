@@ -25,7 +25,23 @@ function ses_custom_menu() {
         'access arguments' => array('access content'),
         'type' => MENU_CALLBACK,
     );
+    $items['get_workgroup_members/%'] = array(
+        'title' => 'Get Workgroup Members',
+        'page callback' => '_ses_custom_show_workgroup_members',
+        'page arguments' => array(1),
+        'access arguments' => array('administer users'),
+        'type' => MENU_CALLBACK,
+    );
     return $items;
+}
+
+function _ses_custom_show_workgroup_members($workgroup) {
+  global $ses_mais_crt_path, $ses_mais_key_path;
+  // get the workgroup members as an array
+  $wg_members = _ses_custom_get_workgroup_members($workgroup,$ses_mais_crt_path, $ses_mais_key_path);
+  print 'workgroup: '.$workgroup.'<pre>';
+  print_r($wg_members);
+  print '</pre>';
 }
 
 function _ses_custom_mailchimp_csv() {
@@ -207,9 +223,10 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             _ses_custom_hide_or_disable_form_field($form,'field_ses_research_group','disable');
             if ($user->uid != 1) {
               _ses_custom_hide_or_disable_form_field($form,'field_account_directory_name','disable');
-              _ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
-              _ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
-              _ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
+              _ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
+              //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
+              //_ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
+              //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
             }
             _ses_custom_hide_or_disable_form_field($form,'field_title','disable');
             if (!isset($form['#user']) || !isset($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) || intval($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) != 1) {
@@ -219,13 +236,13 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
 
             drupal_add_js(array('allowDepartmentTab' => TRUE),'setting');
             if ($user->uid == 1) {
-                _ses_custom_hide_or_disable_form_field($form,'field_import_workgroup','disable');
-                _ses_custom_hide_or_disable_form_field($form,'field_personnel_type','disable');
+                //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup','disable');
+                //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type','disable');
                 _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record','disable');
                 drupal_add_js(array('allowAdminTab' => TRUE),'setting');
             } else {
-                _ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
-                _ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
+                //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
+                //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
                 _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record');
                 drupal_add_js(array('allowAdminTab' => FALSE),'setting');
             }
@@ -233,12 +250,13 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             _ses_custom_hide_or_disable_form_field($form,'field_cap_profile_id');
             _ses_custom_hide_or_disable_form_field($form,'field_account_directory_name');
             _ses_custom_hide_or_disable_form_field($form,'field_ses_research_group');
-            _ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations');
-            _ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations');
+            //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations');
+            //_ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations');
             _ses_custom_hide_or_disable_form_field($form,'field_title');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type');
-            _ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
-            _ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
+            //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type');
+            //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
+            //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
+            _ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups');
             _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record');
             _ses_custom_hide_or_disable_form_field($form,'field_ses_non_cap_profile');
             _ses_custom_hide_or_disable_form_field($form,'field_alumnus');
@@ -311,40 +329,46 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL) {
   }
 
   // set up some globals for our hooks
-  global $ses_custom_uid_array, $ses_custom_count, $ses_custom_dupes;
+  global $ses_custom_uid_array, $ses_custom_wg_members, $ses_custom_research_affils;
   $ses_custom_uid_array = array();
-  $ses_custom_count = 0;
-  $ses_custom_dupes = array();
+  $ses_custom_wg_members = array();
+  $ses_custom_research_affils = array();
 
   // read in our wmd4 array matching Drupal uids to SUNet IDs
-  $result = db_query("SELECT authname,uid FROM {authmap}");
+  $result = db_query("SELECT authname,uid FROM {authmap} WHERE uid in ".
+    "(SELECT uid FROM users WHERE status = 1)");
   foreach ($result as $row) {
-    $ses_custom_uid_array[$row->authname] = array('uid'=>$row->uid,'current'=>FALSE,);
+    $ses_custom_uid_array[$row->authname] = array('uid'=>$row->uid,
+                                                  'wgs'=>array(),
+                                                  'processed' => false,
+                                                 );
   }
 
-  // get secondary and research group affiliations from workgroups
-  global $secondary_affils, $research_affils;
-  $secondary_affils = array();
-  foreach (array('ESS','ERE','E-IPER','Earth Systems','Geophysics','GS') as $secondary_name) {
-      $secondary = strtolower($secondary_name);
-      if ($secondary_name === 'E-IPER') {
-          $secondary = 'eiper';
-      } else if ($secondary_name === 'Earth Systems') {
-          $secondary = 'esys';
-      } else {
-          $secondary = strtolower($secondary_name);
+  // read all of our workgroups and set up the wg_members array
+  $wg_text = trim(variable_get('ses_cap_lite_workgroups',''));
+  $wg_array = array();
+  if (!empty($wg_text)) $wg_array = explode("\n", $wg_text);
+  foreach ($wg_array as $workgroup) {
+    $workgroup = trim($workgroup);
+    $wg_members = _ses_custom_get_workgroup_members($workgroup,
+      $ses_mais_crt_path, $ses_mais_key_path);
+    if ($wg_members === FALSE) {
+      watchdog('ses_custom','Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting process.');
+      drupal_set_message('Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting Process.','error');
+      return FALSE;
+    } else {
+      $ses_custom_wg_members[$workgroup] = $wg_members;
+      foreach ($wg_members as $wg_member) {
+        if (!array_key_exists($wg_member['sunet'],$ses_custom_uid_array)) {
+          $ses_custom_uid_array[$wg_member['sunet']] = array('uid' => null,
+                                                             'wgs' => array());
+        }
+        $ses_custom_uid_array[$wg_member['sunet']]['wgs'][] = $workgroup;
       }
-      $wg_members = _ses_custom_get_workgroup_members(
-          'earthsci:'.$secondary.'-secondary-affiliates', $ses_mais_crt_path, $ses_mais_key_path);
-      if ($wg_members === FALSE) {
-          watchdog('ses_custom','Unable to connect to Workgroup Manager. Halting process.');
-          drupal_set_message('Unable to connect to Workgroup Manager. Halting Process.','error');
-          return FALSE;
-      } else {
-          $secondary_affils[$secondary_name] = $wg_members;
-      }
+    }
   }
-  $research_affils = array();
+
+  // get research group members while we are at it
   $groups = taxonomy_get_tree(1);
   foreach ($groups as $group) {
       if ($group->parents[0] > 0) {
@@ -355,11 +379,10 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL) {
               drupal_set_message('Unable to connect to Workgroup Manager. Halting process.','error');
               return FALSE;
           } else {
-              $research_affils[$group->name] = $rg_members;
+              $ses_custom_research_affils[$group->name] = $rg_members;
           }
       }
   }
-
   return TRUE;
 }
 
@@ -368,27 +391,8 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL) {
  *
  */
 function ses_custom_ses_cap_lite_preprocess_sunet($sunet, $group=NULL) {
-    global $ses_custom_uid_array;
-    if (empty($group)) {
-        // figure it out from the user
-        if (array_key_exists($sunet,$ses_custom_uid_array)) {
-            $user = user_load(intval($ses_custom_uid_array[$sunet]['uid']));
-            if (!empty($user->field_import_workgroup['und'][0]['value'])) {
-                $group = $user->field_import_workgroup['und'][0]['value'];
-            }
-        }
-    }
-    $affil_data = FALSE;
-    if (!empty($group)) {
-        // get the Affiliation and Personnel Type of this workgroup
-        $affil_data = _ses_custom_get_workgroup_affiliation($group);
-    }
-    if ($affil_data === FALSE) {
-        if (empty($group)) $group='unknown group';
-        watchdog('ses_custom','Unable to determine affiliation and personnel data for workgroup: ' . $group);
-        drupal_set_message('Unable to determine affiliation and personnel type for '.$sunet.' in '.$group);
-        return FALSE;
-    }
+  /*
+  global $ses_custom_uid_array;
 
     global $ses_mais_crt_path, $ses_mais_key_path;
     // get the workgroup members as an array
@@ -411,6 +415,7 @@ function ses_custom_ses_cap_lite_preprocess_sunet($sunet, $group=NULL) {
         }
     } // if workgroup has members
     return TRUE;
+  */
 }
 
 /*
@@ -421,22 +426,16 @@ function ses_custom_ses_cap_lite_preprocess_sunet($sunet, $group=NULL) {
  */
 function ses_custom_ses_cap_lite_preprocess_wg($group) {
 
-    global $ses_custom_uid_array, $ses_custom_count, $ses_custom_dupes;
-
-    // get the Affiliation and Personnel Type of this workgroup
-    $affil_data = _ses_custom_get_workgroup_affiliation($group);
-    if ($affil_data === FALSE) {
-        watchdog('ses_custom','Unable to determine affiliation and personnel data for workgroup: ' . $group);
-        return 0; // return 0 members
-    }
+    global $ses_custom_uid_array, $ses_custom_wg_members;
 
     global $ses_mais_crt_path, $ses_mais_key_path;
     // get the workgroup members as an array
-    $wg_members = _ses_custom_get_workgroup_members($group,$ses_mais_crt_path, $ses_mais_key_path);
-    if ($wg_members === FALSE) {
-        watchdog('ses_custom','Unable to get workgroup members for ' . $group);
-        $wg_count = FALSE;
-    } else if (empty($wg_members)) {
+    if (!array_key_exists($group,$ses_custom_wg_members)) {
+      watchdog('ses_custom','Unable to get workgroup members for ' . $group);
+      $wg_count = FALSE;
+    }
+    $wg_members = $ses_custom_wg_members[$group];
+    if (empty($wg_members)) {
         watchdog('ses_custom','Empty workgroup. No members for ' . $group);
         $wg_count = 0;
     } else {
@@ -445,29 +444,31 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
         foreach ($wg_members as $wg_member) {
             $ses_custom_count += 1;
             $sunet = $wg_member['sunet'];
-            if (array_key_exists($sunet,$ses_custom_dupes)) {
-                watchdog('ses_custom','Duplicate: '. $sunet . ' first found in '.$ses_custom_dupes[$sunet]. ' also found in '.$group);
-            } else {
-                $ses_custom_dupes[$sunet] = $group;
-            }
-            $uid = NULL;
+            $uid = null;
+            $processed = false;
             if (array_key_exists($sunet,$ses_custom_uid_array)) {
                 $uid = $ses_custom_uid_array[$sunet]['uid'];
+                $processed = $ses_custom_uid_array[$sunet]['processed'];
             }
-            $uid = _ses_custom_update_single_account($sunet,$uid,$affil_data,$wg_member,$group);
-            if (!empty($uid)) $ses_custom_uid_array[$sunet] = array('uid'=>$uid,'current'=>TRUE);
+            if (!$processed) {
+              $uid = _ses_custom_update_single_account($sunet, $uid, $wg_member, $group);
+              if (!empty($uid)) {
+                $ses_custom_uid_array[$sunet]['uid'] = $uid;
+                $ses_custom_uid_array[$sunet]['processed'] = true;
+              }
+            }
         } // for each member
     } // if workgroup has members
     return $wg_count;
 }
 
 // update or create a user account for each person in our workgroup
-function _ses_custom_update_single_account($sunet = '', $uid = NULL, $affil_data = array(), 
-                                           $wg_member = array(),$group=NULL) {
+function _ses_custom_update_single_account($sunet = '', $uid = null,
+                                           $wg_member = array(),$group=null) {
 
-    if (empty($sunet)|| empty($affil_data)) return FALSE;
+    if (empty($sunet)) return FALSE;
 
-    $user = NULL;
+    $user = null;
     // if they already have an account, load it, otherwise create account
     if (!empty($uid)) {
         $user = user_load($uid);
@@ -493,54 +494,23 @@ function _ses_custom_update_single_account($sunet = '', $uid = NULL, $affil_data
         $user = user_save('', $fields);
         $uid = $user->uid;
         // update tables for external users
-        //db_insert('wmd4_id')->fields(array('uid'=>$user->uid,'sunetid'=>$sunet))->execute();
         db_insert('authmap')->fields(array('uid'=>$user->uid,'authname'=>$sunet,'module'=>'wmd4'))->execute();
     }  // if create user
 
     // make sure our affiliations and personnel type, and directory name are correct
-    global $secondary_affils, $research_affils;
-    // update the user's primary and secondary affiliations, personnel type and directory name
+    global $ses_custom_uid_array, $ses_custom_research_affils;
 
-    // build a secondary affiliations array
-    $new_array = array();
-    // load in any already stored in the user object
-    if (!empty($user->field_secondary_affiliations[LANGUAGE_NONE]) && 
-        is_array($user->field_secondary_affiliations[LANGUAGE_NONE])) {
-        foreach ($user->field_secondary_affiliations[LANGUAGE_NONE] as $seconderry) {
-            $new_array[$seconderry['value']] = $seconderry['value'];
-        }
+    // build a workgroup array
+    $new_array = array(LANGUAGE_NONE => array());
+    if (!empty($ses_custom_uid_array[$sunet]['wgs'])) {
+      foreach ($ses_custom_uid_array[$sunet]['wgs'] as $workgroup) {
+        $new_array[LANGUAGE_NONE][] = $workgroup;
+      }
     }
 
-    // add the current (primary) affiliation also as a secondary
-    $new_array[$affil_data['affil']] = $affil_data['affil'];
-    // add in any found in the secondary affiliations groups
-    foreach ($secondary_affils as $affil_key => $affil_array) {
-        if (array_key_exists($sunet, $affil_array)) {
-            $new_array[$affil_key] = $affil_key;
-        }
-    }
-    // turn into a field array
-    $new_secondary = array();
-    if (!empty($new_array)) {
-        $new_secondary[LANGUAGE_NONE] = array();
-        foreach ($new_array as $new_affil) {
-            $new_secondary[LANGUAGE_NONE][] = array('value' => $new_affil);
-        }
-    }
-
-    // set personnel type terms
-    $short_title = NULL;
-    if (isset($user->field_cap_short_title[LANGUAGE_NONE][0]['value'])) {
-        $short_title = $user->field_cap_short_title[LANGUAGE_NONE][0]['value'];
-    }
-    $assoc_array = array();
-    if (isset($user->field_ses_associate_type)) {
-        $assoc_array = $user->field_ses_associate_type;
-    }
-    $associate_type = _ses_custom_personnel_terms($affil_data['ptype'],$short_title,$assoc_array,$affil_data['affil']);
     // fill the research array
     $research_array = array();
-    foreach ($research_affils as $affil_key => $affil_array) {
+    foreach ($ses_custom_research_affils as $affil_key => $affil_array) {
         if (array_key_exists($sunet, $affil_array)) {
             $tid_array = taxonomy_get_term_by_name($affil_key,'vocabulary_1');
             if (!empty($tid_array)) {
@@ -553,12 +523,8 @@ function _ses_custom_update_single_account($sunet = '', $uid = NULL, $affil_data
         }
     }
     $edit = array('status'=>1,
-        'field_personnel_type' => array('und'=>array(array('value'=>$affil_data['ptype']))),
-        'field_ses_associate_type' => $associate_type,
-        'field_primary_affiliations' => array('und'=>array(array('value'=>$affil_data['affil']))),
-        'field_secondary_affiliations'=>$new_secondary,
+        'field_ses_affiliation_workgroups'=>$new_array,
         'field_ses_research_group'=>$research_array,
-        'field_import_workgroup'=>array('und'=>array(array('value'=>$group))),
         'field_account_directory_name'=>array('und'=>array(array('value'=>$wg_member['directory_name']))));
 
     // only set the account name if empty
@@ -606,9 +572,16 @@ function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
  */
 function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
     /* if the profile is not for faculty, we don't want any academic appointment items from CAP */
-    if (isset($profileObj) && isset($profileObj->field_personnel_type[LANGUAGE_NONE][0]['value']) &&
-            strpos($profileObj->field_personnel_type[LANGUAGE_NONE][0]['value'],'Faculty') === FALSE) {
-        $fields['field_cap_academic_appointments'] = array();
+    if (!empty($fields['field_cap_academic_appointments']) && isset($profileOjb)
+         && !empty($profileObj->field_ses_affiliation_workgroups[LANGUAGE_NONE])) {
+      $faculty = false;
+      foreach ($profileObj->field_ses_affiliation_workgroups[LANGUAGE_NONE] as $affil) {
+        if (strpos($affil,'faculty') !== false) {
+          $faculty = true;
+          break;
+        }
+      }
+      if (!$faculty) $fields['field_cap_academic_appointments'] = array();
     }
 
     /* in the title, remove 'admitted year' and change 'petroleum' to 'energy resources' */
@@ -624,8 +597,8 @@ function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
 /*
  * implementation of workgroup postprocess hook
  */
-function ses_custom_ses_cap_lite_postprocess_wg($group='', $data=array()) {
 /*
+function ses_custom_ses_cap_lite_postprocess_wg($group='', $data=array()) {
     if (isset($data['values']) && is_array($data['values']) && strpos($group,'faculty-regular') !== FALSE) {
         foreach ($data['values'] as $member) {
             $member_name = $member['displayName'];
@@ -658,8 +631,8 @@ function ses_custom_ses_cap_lite_postprocess_wg($group='', $data=array()) {
             }
         }
     }
-*/
 }
+*/
 
 /*
  * implementation of postprocess hook when all cap profiles are done
@@ -668,21 +641,30 @@ function ses_custom_ses_cap_lite_postprocess_wg($group='', $data=array()) {
  *
  */
 function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL) {
-    global $ses_custom_uid_array, $ses_custom_count;
+    global $ses_custom_uid_array;
+    $ses_custom_count = 0;
     watchdog('ses_custom','Post processing accounts. Checking LDAP for contact info.');
     if (isset($single_sunet)) {
         if (isset($ses_custom_uid_array[$single_sunet]['uid'])) {
             _ses_custom_update_contact_from_ldap($single_sunet,intval($ses_custom_uid_array[$single_sunet]['uid']));
+          $ses_custom_count = 1;
         }
     } else {
-        // if a user account was not in any of our workgroups
-        foreach ($ses_custom_uid_array as $sunet => $subarray) {
-            if ($subarray['current'] === FALSE) {
+      $ses_custom_count = 0;
+      // get an array of users explicitly allowed by wmd4 module
+      $allowed_users = array();
+      $users_text = trim(variable_get('wmd4_require_users',''));
+      $temp_users = array();
+      if (!empty($users_text)) $allowed_users = explode("\n", $users_text);
+      foreach ($temp_users as $wmd_user) {
+        $allowed_users[] = trim($wmd_user);
+      }
+      // if a user account was not in any of our workgroups
+      foreach ($ses_custom_uid_array as $sunet => $subarray) {
+            $ses_custom_count += 1;
+            if (empty($subarray['wgs'])) {
                 // check if they are explicitly allowed via wmd module
-                $users_text = trim(variable_get('wmd4_require_users',''));
-                $users_array = array();
-                if (!empty($users_text)) $users_array = explode("\n", $users_text);
-                if (!in_array($sunet,$users_array)) {
+                if (!in_array($sunet,$allowed_users)) {
                     // if they are not explicitly allowed, check if they are alumni
                     $old_user = user_load(intval($subarray['uid']));
                     if ($old_user !== FALSE) {
@@ -693,13 +675,11 @@ function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL) {
                             user_save($old_user,$edit);
                         }
                     }
-                } else {
-                    watchdog('debug',$sunet.' found in webauth allowed users');
                 }
             } else {
-                _ses_custom_update_contact_from_ldap($sunet,intval($subarray['uid']));
+               // _ses_custom_update_contact_from_ldap($sunet,intval($subarray['uid']));
             }
-        }
+      }
     }
     watchdog('ses_custom','Number of user accounts processed: '.$ses_custom_count);
     return TRUE;
@@ -742,6 +722,7 @@ function _ses_custom_update_contact_from_ldap($sunet=NULL,$uid = 0) {
     }
 }
 
+/*
 function _ses_custom_get_workgroup_affiliation($workgroup_name=NULL) {
     if (empty($workgroup_name)) return FALSE;
     $dash = strpos($workgroup_name,'-');
@@ -818,6 +799,7 @@ function _ses_custom_get_workgroup_affiliation($workgroup_name=NULL) {
  
     return array('affil'=>$affil_str,'ptype'=>$ptype_str);
 }
+*/
 
 function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_file=NULL) {
 
@@ -1006,6 +988,7 @@ function ses_custom_user_presave(&$edit, $account, $category) {
     }
 }
 
+/*
 function _ses_custom_personnel_terms($personnel_type,$title=NULL,$tid_input = array(),$affiliation=NULL) {
 
     $tid_array = array();
@@ -1087,6 +1070,7 @@ function _ses_custom_personnel_terms($personnel_type,$title=NULL,$tid_input = ar
     }
     return $tid_out;
 }
+*/
 
 function earth_keen_preprocess_views_view(&$vars) {
     $view = $vars['view'];
