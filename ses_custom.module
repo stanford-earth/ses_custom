@@ -572,11 +572,11 @@ function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
  */
 function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
     /* if the profile is not for faculty, we don't want any academic appointment items from CAP */
-    if (!empty($fields['field_cap_academic_appointments']) && isset($profileOjb)
+    if (!empty($fields['field_cap_academic_appointments']) && isset($profileObj)
          && !empty($profileObj->field_ses_affiliation_workgroups[LANGUAGE_NONE])) {
       $faculty = false;
       foreach ($profileObj->field_ses_affiliation_workgroups[LANGUAGE_NONE] as $affil) {
-        if (strpos($affil,'faculty') !== false) {
+        if (strpos($affil['value'],'faculty') !== false) {
           $faculty = true;
           break;
         }
