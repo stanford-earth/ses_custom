@@ -504,7 +504,7 @@ function _ses_custom_update_single_account($sunet = '', $uid = null,
     $new_array = array(LANGUAGE_NONE => array());
     if (!empty($ses_custom_uid_array[$sunet]['wgs'])) {
       foreach ($ses_custom_uid_array[$sunet]['wgs'] as $workgroup) {
-        $new_array[LANGUAGE_NONE][] = $workgroup;
+        $new_array[LANGUAGE_NONE][] = array('value' => $workgroup);
       }
     }
 
