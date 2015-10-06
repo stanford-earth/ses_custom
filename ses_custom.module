@@ -36,6 +36,8 @@ function ses_custom_menu() {
 }
 
 function _ses_custom_show_workgroup_members($workgroup) {
+    $account = user_load(683);
+
   global $ses_mais_crt_path, $ses_mais_key_path;
   // get the workgroup members as an array
   $wg_members = _ses_custom_get_workgroup_members($workgroup,$ses_mais_crt_path, $ses_mais_key_path);
@@ -142,6 +144,37 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
 
     // hide the email field on the user account form and
     // load some jQuery to auto-add the primary affiliation to the secondary list
+    if ($form_id == 'views_exposed_form') {
+        require_once(__DIR__ . '/ses_custom.inc');
+        $vid = _ses_custom_get_personnel_vid('profile_personnel_types');
+        $tree = taxonomy_get_tree($vid);
+        $ptypes = array('All'=>'- All -');
+        foreach ($tree as $option) {
+            $ptypes[$option->tid] = $option->name;
+        }
+        $affils = array("All"=>"- All -","Dean's Office"=>"Dean's Office","E-IPER"=>"E-IPER","ESS"=>"Earth System Science",
+            "Earth Systems"=>"Earth Systems Program","ERE"=>"Energy Resources Engineering","GS"=>"Geological Sciences",
+            "Geophysics"=>"Geophysics");
+        //$form['field_ses_affiliation_workgroups_value']['#type'] = 'hidden';
+        //unset($form['#info']['filter-field_ses_affiliation_workgroups_value']['label']);
+        if ($form['#id'] == 'views-exposed-form-people-page') {
+            $form['tmp_associate_type'] = array(
+                '#type' => 'select',
+                '#options' => $ptypes,
+                '#size' => null,
+                '#default_value' => 'All',
+            );
+            $form['tmp_affiliation'] = array(
+                '#type' => 'select',
+                '#options' => $affils,
+                '#size' => null,
+                '#default_value' => 'All',
+            );
+            $new_info = array('filter-tmp_associate_type'=>array('label'=>'Type', 'value'=>'tmp_associate_type'),
+                'filter-tmp_affiliation'=>array('label'=>'Affiliation', 'value'=>'tmp_affiliation'));
+            $form['#info'] = array_merge($new_info,$form['#info']);
+        }
+    }
     if ($form_id == 'user_profile_form') {
 
         foreach (array('field_ses_title_override','field_office_location','field_phone','field_fax','field_stanford_email','field_ses_research_override') as $field_name) {
@@ -224,6 +257,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             if ($user->uid != 1) {
               _ses_custom_hide_or_disable_form_field($form,'field_account_directory_name','disable');
               _ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
+              _ses_custom_hide_or_disable_form_field($form,'field_ses_workgroup_membership', 'disable');
               //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
               //_ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
               //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
@@ -257,6 +291,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
             //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
             _ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups');
+            _ses_custom_hide_or_disable_form_field($form,'field_ses_workgroup_membership');
             _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record');
             _ses_custom_hide_or_disable_form_field($form,'field_ses_non_cap_profile');
             _ses_custom_hide_or_disable_form_field($form,'field_alumnus');
@@ -523,7 +558,7 @@ function _ses_custom_update_single_account($sunet = '', $uid = null,
         }
     }
     $edit = array('status'=>1,
-        'field_ses_affiliation_workgroups'=>$new_array,
+        'field_ses_workgroup_membership'=>$new_array,
         'field_ses_research_group'=>$research_array,
         'field_account_directory_name'=>array('und'=>array(array('value'=>$wg_member['directory_name']))));
 
@@ -587,10 +622,14 @@ function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
     /* in the title, remove 'admitted year' and change 'petroleum' to 'energy resources' */
     if (isset($fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'])) {
         $shortie = $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'];
+        $ushortie = strtoupper($shortie);
         if (strpos($shortie,', admitted') !== FALSE) {
             $shortie = substr($shortie,0,strpos($shortie,', admitted'));
         }
         $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'] = str_replace('Petroleum','Energy Resources',$shortie);
+        if (strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
+            print 'PhD Student: '.$shortie.' name: '.$profileObj->name.'<br />';
+        }
     }
 }
 
@@ -988,7 +1027,6 @@ function ses_custom_user_presave(&$edit, $account, $category) {
     }
 }
 
-/*
 function _ses_custom_personnel_terms($personnel_type,$title=NULL,$tid_input = array(),$affiliation=NULL) {
 
     $tid_array = array();
@@ -1070,7 +1108,6 @@ function _ses_custom_personnel_terms($personnel_type,$title=NULL,$tid_input = ar
     }
     return $tid_out;
 }
-*/
 
 function earth_keen_preprocess_views_view(&$vars) {
     $view = $vars['view'];
