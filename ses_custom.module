@@ -256,7 +256,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             _ses_custom_hide_or_disable_form_field($form,'field_ses_research_group','disable');
             if ($user->uid != 1) {
               _ses_custom_hide_or_disable_form_field($form,'field_account_directory_name','disable');
-              _ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
+              //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
               _ses_custom_hide_or_disable_form_field($form,'field_ses_workgroup_membership', 'disable');
               //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
               //_ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
@@ -290,7 +290,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type');
             //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
             //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups');
+            //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups');
             _ses_custom_hide_or_disable_form_field($form,'field_ses_workgroup_membership');
             _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record');
             _ses_custom_hide_or_disable_form_field($form,'field_ses_non_cap_profile');
@@ -608,9 +608,9 @@ function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
 function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
     /* if the profile is not for faculty, we don't want any academic appointment items from CAP */
     if (!empty($fields['field_cap_academic_appointments']) && isset($profileObj)
-         && !empty($profileObj->field_ses_affiliation_workgroups[LANGUAGE_NONE])) {
+         && !empty($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE])) {
       $faculty = false;
-      foreach ($profileObj->field_ses_affiliation_workgroups[LANGUAGE_NONE] as $affil) {
+      foreach ($profileObj->field_ses_affiliation_membership[LANGUAGE_NONE] as $affil) {
         if (strpos($affil['value'],'faculty') !== false) {
           $faculty = true;
           break;
