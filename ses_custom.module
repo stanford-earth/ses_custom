@@ -36,7 +36,7 @@ function ses_custom_menu() {
 }
 
 function _ses_custom_show_workgroup_members($workgroup) {
-    $account = user_load(683);
+    $account = user_load(2047);
 
   global $ses_mais_crt_path, $ses_mais_key_path;
   // get the workgroup members as an array
@@ -145,7 +145,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
     // hide the email field on the user account form and
     // load some jQuery to auto-add the primary affiliation to the secondary list
     if ($form_id == 'views_exposed_form') {
-        require_once(__DIR__ . '/ses_custom.inc');
+        include_once(drupal_get_path('module','ses_custom').'/ses_custom.inc');
         $vid = _ses_custom_get_personnel_vid('profile_personnel_types');
         $tree = taxonomy_get_tree($vid);
         $ptypes = array('All'=>'- All -');
@@ -606,6 +606,9 @@ function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
  *
  */
 function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
+
+    global $ses_custom_wg_members;
+
     /* if the profile is not for faculty, we don't want any academic appointment items from CAP */
     if (!empty($fields['field_cap_academic_appointments']) && isset($profileObj)
          && !empty($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE])) {
@@ -627,8 +630,11 @@ function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
             $shortie = substr($shortie,0,strpos($shortie,', admitted'));
         }
         $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'] = str_replace('Petroleum','Energy Resources',$shortie);
-        if (strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
-            print 'PhD Student: '.$shortie.' name: '.$profileObj->name.'<br />';
+        $fields['ses_phd_student'] = array();
+        if (array_key_exists($fields['field_cap_sunet_id'][LANGUAGE_NONE][0]['value'],
+            $ses_custom_wg_members['earthsci:eiper-students-graduate-phd']) ||
+            strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
+            $fields['field_ses_phd_student'][LANGUAGE_NONE][0]['value'] = "1";
         }
     }
 }
