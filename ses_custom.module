@@ -36,7 +36,9 @@ function ses_custom_menu() {
 }
 
 function _ses_custom_show_workgroup_members($workgroup) {
-    $account = user_load(2047);
+    $account = user_load(683);
+    print '<pre>'; print_r($account);print '</pre>';
+    return;
 
   global $ses_mais_crt_path, $ses_mais_key_path;
   // get the workgroup members as an array
@@ -152,9 +154,37 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
         foreach ($tree as $option) {
             $ptypes[$option->tid] = $option->name;
         }
+        $ptype_field = array(
+            '#type' => 'select',
+            '#options' => $ptypes,
+            '#size' => null,
+            '#default_value' => 'All',
+        );
         $affils = array("All"=>"- All -","Dean's Office"=>"Dean's Office","E-IPER"=>"E-IPER","ESS"=>"Earth System Science",
             "Earth Systems"=>"Earth Systems Program","ERE"=>"Energy Resources Engineering","GS"=>"Geological Sciences",
             "Geophysics"=>"Geophysics");
+        $affils_field = array(
+            '#type' => 'select',
+            '#options' => $affils,
+            '#size' => null,
+            '#default_value' => 'All',
+        );
+        if ($form['#id'] == 'views-exposed-form-people-eiper-all') {
+            $etypes = array('All'=>'- All -','Faculty'=>'Faculty','Students'=>'All Students','PhD'=>'PhD Students',
+                'MS'=>'MS Students','Staff'=>'Staff','PhD Alumni'=>'PhD Alumni','MS Alumni'=>'MS Alumni');
+            $form['tmp_associate_type'] = array(
+                '#type' => 'select',
+                '#options' => $etypes,
+                '#size' => null,
+                '#default_value' => 'All',
+            );
+            //$form['field_ses_workgroup_membership_value']['#type'] = 'hidden';
+            //unset($form['#info']['filter-field_ses_workgroup_membership_value']['label']);
+            $new_info = array('filter-tmp-associate-type'=>array('label'=>'Type', 'value'=>'tmp_associate_type'));
+            $form['#info'] = array_merge($new_info,$form['#info']);
+            if (!isset($form['#validate'])) $form['#validate']=array();
+            $form['#validate'] = array_merge(array('_ses_custom_wg_validate'),$form['#validate']);
+        }
         //$form['field_ses_affiliation_workgroups_value']['#type'] = 'hidden';
         //unset($form['#info']['filter-field_ses_affiliation_workgroups_value']['label']);
         if ($form['#id'] == 'views-exposed-form-people-page') {
@@ -317,6 +347,10 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
     else if ($form_id == 'webform_client_form_48281') {
         drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom.css');
     }
+}
+
+function _ses_custom_wg_validate($form, &$form_state) {
+    $xyz = 1;
 }
 
 /*
@@ -606,9 +640,6 @@ function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
  *
  */
 function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
-
-    global $ses_custom_wg_members;
-
     /* if the profile is not for faculty, we don't want any academic appointment items from CAP */
     if (!empty($fields['field_cap_academic_appointments']) && isset($profileObj)
          && !empty($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE])) {
@@ -630,11 +661,8 @@ function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
             $shortie = substr($shortie,0,strpos($shortie,', admitted'));
         }
         $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'] = str_replace('Petroleum','Energy Resources',$shortie);
-        $fields['ses_phd_student'] = array();
-        if (array_key_exists($fields['field_cap_sunet_id'][LANGUAGE_NONE][0]['value'],
-            $ses_custom_wg_members['earthsci:eiper-students-graduate-phd']) ||
-            strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
-            $fields['field_ses_phd_student'][LANGUAGE_NONE][0]['value'] = "1";
+        if (strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
+            print 'PhD Student: '.$shortie.' name: '.$profileObj->name.'<br />';
         }
     }
 }
