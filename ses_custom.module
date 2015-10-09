@@ -170,8 +170,10 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             '#default_value' => 'All',
         );
         if ($form['#id'] == 'views-exposed-form-people-eiper-all') {
+            drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom.js');
+            drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom.css');
             $etypes = array('All'=>'- All -','Faculty'=>'Faculty','Students'=>'All Students','PhD'=>'PhD Students',
-                'MS'=>'MS Students','Staff'=>'Staff','PhD Alumni'=>'PhD Alumni','MS Alumni'=>'MS Alumni');
+                'MS'=>'MS Students','Staff'=>'Staff');
             $form['tmp_associate_type'] = array(
                 '#type' => 'select',
                 '#options' => $etypes,
@@ -350,7 +352,45 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
 }
 
 function _ses_custom_wg_validate($form, &$form_state) {
-    $xyz = 1;
+    if ($form['#id'] == 'views-exposed-form-people-eiper-all') {
+        switch ($form_state['values']['tmp_associate_type']) {
+            case 'Faculty':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:eiper-faculty' => 'earthsci:eiper-faculty',
+                );
+                break;
+            case 'All Students':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:eiper-students-graduate-phd' => 'earthsci:eiper-students-graduate-phd',
+                    'earthsci:eiper-students-graduate' => 'earthsci:eiper-students-graduate',
+                );
+                break;
+            case 'PhD Students':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:eiper-students-graduate-phd' => 'earthsci:eiper-students-graduate-phd',
+                );
+                break;
+            case 'MS Students':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:eiper-students-graduate' => 'earthsci:eiper-students-graduate',
+                );
+                break;
+            case 'Staff':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:eiper-staff-admin' => 'earthsci:eiper-staff-admin',
+                );
+                break;
+            case 'All':
+            default:
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:eiper-faculty' => 'earthsci:eiper-faculty',
+                    'earthsci:eiper-students-graduate-phd' => 'earthsci:eiper-students-graduate-phd',
+                    'earthsci:eiper-students-graduate' => 'earthsci:eiper-students-graduate',
+                    'earthsci:eiper-staff-admin' => 'earthsci:eiper-staff-admin',
+                );
+                break;
+        }
+    }
 }
 
 /*
@@ -511,7 +551,6 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
         $wg_count = count($wg_members);
         // for each person in the workgroup, get their SUNet ID
         foreach ($wg_members as $wg_member) {
-            $ses_custom_count += 1;
             $sunet = $wg_member['sunet'];
             $uid = null;
             $processed = false;
