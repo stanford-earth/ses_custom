@@ -20,7 +20,6 @@
         $('#edit-field-cap-profile-image-und-0-remove-button').hide();
         $('#edit-field-ses-research-group .hierarchical-select').hide();
         $('#edit-field-ses-research-group .dropbox-remove').hide();
-        $('#edit-field-ses-workgroup-membership-value-wrapper').hide();
     });
     /*
     function _ses_set_secondary_checkboxes(selVal) {

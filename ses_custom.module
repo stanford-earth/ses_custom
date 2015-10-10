@@ -147,28 +147,57 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
     // hide the email field on the user account form and
     // load some jQuery to auto-add the primary affiliation to the secondary list
     if ($form_id == 'views_exposed_form') {
-        include_once(drupal_get_path('module','ses_custom').'/ses_custom.inc');
-        $vid = _ses_custom_get_personnel_vid('profile_personnel_types');
-        $tree = taxonomy_get_tree($vid);
-        $ptypes = array('All'=>'- All -');
-        foreach ($tree as $option) {
-            $ptypes[$option->tid] = $option->name;
+        if (in_array($form['#id'],array('views-exposed-form-people-ess-all'))) {
+            $form['tmp_associate_type'] = array(
+                '#type' => 'select',
+                '#options' => array('All'=>'- All -'),
+                '#size' => null,
+                '#default_value' => 'All',
+            );
+            switch ($form['#id']) {
+                case 'views-exposed-form-people-ess-all':
+                    $form['tmp_associate_type']['#options']['Faculty'] = 'All Faculty';
+                    $form['tmp_associate_type']['#options']['Regular'] = 'Regular Faculty';
+                    $form['tmp_associate_type']['#options']['Emeritus'] = 'Emeritus Faculty';
+                    $form['tmp_associate_type']['#options']['Affiliated'] = 'Affiliated Faculty';
+                    $form['tmp_associate_type']['#options']['Postdocs'] = 'Postdocs';
+                    $form['tmp_associate_type']['#options']['Students'] = 'All Graduate Students';
+                    $form['tmp_associate_type']['#options']['PhD'] = 'PhD Students';
+                    $form['tmp_associate_type']['#options']['Masters'] = 'Masters Students';
+                    $form['tmp_associate_type']['#options']['Staff'] = 'All Staff';
+                    $form['tmp_associate_type']['#options']['Admin'] = 'Administrative Staff';
+                    $form['tmp_associate_type']['#options']['Research'] = 'Research Staff';
+                    $form['tmp_associate_type']['#options']['Teaching'] = 'Teaching Staff';
+                    break;
+            }
+            $new_info = array('filter-tmp-associate-type'=>array('label'=>'Type', 'value'=>'tmp_associate_type'));
+            $form['#info'] = array_merge($new_info,$form['#info']);
+            if (!isset($form['#validate'])) $form['#validate']=array();
+            $form['#validate'] = array_merge(array('_ses_custom_wg_validate'),$form['#validate']);
         }
-        $ptype_field = array(
-            '#type' => 'select',
-            '#options' => $ptypes,
-            '#size' => null,
-            '#default_value' => 'All',
-        );
-        $affils = array("All"=>"- All -","Dean's Office"=>"Dean's Office","E-IPER"=>"E-IPER","ESS"=>"Earth System Science",
-            "Earth Systems"=>"Earth Systems Program","ERE"=>"Energy Resources Engineering","GS"=>"Geological Sciences",
-            "Geophysics"=>"Geophysics");
-        $affils_field = array(
-            '#type' => 'select',
-            '#options' => $affils,
-            '#size' => null,
-            '#default_value' => 'All',
-        );
+
+        //$vid = _ses_custom_get_personnel_vid('profile_personnel_types');
+        //$tree = taxonomy_get_tree($vid);
+//        $ptypes = array('All'=>'- All -');
+        //foreach ($tree as $option) {
+        //    $ptypes[$option->tid] = $option->name;
+        //}
+ //       $ptype_field = array(
+   //         '#type' => 'select',
+     //       '#options' => $ptypes,
+       //     '#size' => null,
+         //   '#default_value' => 'All',
+ //       );
+   //     $affils = array("All"=>"- All -","Dean's Office"=>"Dean's Office","E-IPER"=>"E-IPER","ESS"=>"Earth System Science",
+     //       "Earth Systems"=>"Earth Systems Program","ERE"=>"Energy Resources Engineering","GS"=>"Geological Sciences",
+       //     "Geophysics"=>"Geophysics");
+  //      $affils_field = array(
+    //        '#type' => 'select',
+      //      '#options' => $affils,
+        //    '#size' => null,
+          //  '#default_value' => 'All',
+      //  );
+        /*
         if ($form['#id'] == 'views-exposed-form-people-eiper-all') {
             drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom.js');
             drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom.css');
@@ -187,8 +216,10 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
             if (!isset($form['#validate'])) $form['#validate']=array();
             $form['#validate'] = array_merge(array('_ses_custom_wg_validate'),$form['#validate']);
         }
+        */
         //$form['field_ses_affiliation_workgroups_value']['#type'] = 'hidden';
         //unset($form['#info']['filter-field_ses_affiliation_workgroups_value']['label']);
+        /*
         if ($form['#id'] == 'views-exposed-form-people-page') {
             $form['tmp_associate_type'] = array(
                 '#type' => 'select',
@@ -206,8 +237,8 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
                 'filter-tmp_affiliation'=>array('label'=>'Affiliation', 'value'=>'tmp_affiliation'));
             $form['#info'] = array_merge($new_info,$form['#info']);
         }
-    }
-    if ($form_id == 'user_profile_form') {
+        */
+    } else if ($form_id == 'user_profile_form') {
 
         foreach (array('field_ses_title_override','field_office_location','field_phone','field_fax','field_stanford_email','field_ses_research_override') as $field_name) {
             if (!isset($form[$field_name]['#pre_render'])) $form[$field_name]['#pre_render'] = array();
@@ -351,7 +382,186 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id) {
     }
 }
 
+function _ses_custom_build_wg_selection($department, $personnel_type) {
+    $dept_array = array();
+    switch ($department) {
+        case 'deans':
+        case 'ess':
+        case 'ere':
+        case 'gs':
+        case 'geophysics':
+        case 'eiper':
+        case 'esys':
+            $dept_array = array($department);
+            break;
+        default:
+            $dept_array = array('deans','ess','ere','gs','geophysics','eiper','esys');
+    }
+    $ptype_array = array();
+    switch ($personnel_type) {
+        case 'faculty':
+        case 'regular':
+        case 'emeritus':
+        case 'affiliated':
+        case 'postdocs':
+        case 'students':
+        case 'graduate':
+        case 'phd':
+        case 'masters':
+        case 'undergraduate':
+        case 'staff':
+        case 'admin':
+        case 'research':
+        case 'teaching':
+            $ptype_array = array($personnel_type);
+            break;
+        default:
+            $ptype_array = array('regular','emeritus','affiliated','postdocs','graduate','undergraduate','admin','research','teaching');
+    }
+    $return_array = array('wgs'=>array(), 'phds'=>'All');
+    foreach ($dept_array as $dept) {
+        if ($dept == 'deans') {
+            $return_array['wgs']['earthsci:deans-office'] = 'earthsci:deans-office';
+        } else foreach ($ptype_array as $ptype) {
+            if ($dept == 'eiper' || $dept == 'esys') {
+                switch ($ptype) {
+                    case 'faculty':
+                    case 'regular':
+                    case 'emeritus':
+                    case 'affiliated':
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty'] = 'earthsci:' . $dept . '-faculty';
+                        break;
+                    case 'students':
+                    case 'graduate':
+                    case 'phd':
+                    case 'masters':
+                    case 'undergraduate':
+                        if ($dept == 'eiper' && ($ptype == 'students' || $ptype == 'graduate' || $ptype == 'phd')) {
+                            $return_array['wgs']['earthsci:'.$dept.'-students-graduate-phd'] = 'earthsci:'.$dept.'-students-graduate-phd';
+                        }
+                        if (($dept == 'esys' && $ptype != 'undergraduate') || ($dept == 'eiper' && $ptype != 'phd' && $ptype != 'undergraduate')) {
+                            $return_array['wgs']['earthsci:' . $dept . '-students-graduate'] = 'earthsci:' . $dept . '-students-graduate';
+                        }
+                        if ($dept == 'esys' && ($ptype == 'students' || $ptype == 'undergraduate')) {
+                            $return_array['wgs']['earthsci:'.$dept.'-students-undergraduate'] = 'earthsci:'.$dept.'-students-undergraduate';
+                        }
+                        break;
+                    case 'staff':
+                    case 'admin':
+                    case 'teaching':
+                        if ($dept == 'esys' && ($ptype == 'teaching' || $ptype == 'staff')) {
+                            $return_array['wgs']['earthsci:'.$dept.'-staff-teaching'] = 'earthsci:'.$dept.'-staff-teaching';
+                        }
+                        if ($ptype == 'staff' || $ptype == 'admin') {
+                            $return_array['wgs']['earthsci:' . $dept . '-staff-admin'] = 'earthsci:' . $dept . '-staff-admin';
+                        }
+                        break;
+                }
+            } else {
+                switch ($ptype) {
+                    case 'faculty':
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-regular'] = 'earthsci:' . $dept . '-faculty-regular';
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-emeritus'] = 'earthsci:' . $dept . '-faculty-emeritus';
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-affiliated'] = 'earthsci:' . $dept . '-faculty-affiliated';
+                        break;
+                    case 'faculty':
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-regular'] = 'earthsci:' . $dept . '-faculty-regular';
+                        break;
+                    case 'emeritus':
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-emeritus'] = 'earthsci:' . $dept . '-faculty-emeritus';
+                        break;
+                    case 'affiliated':
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-affiliated'] = 'earthsci:' . $dept . '-faculty-affiliated';
+                        break;
+                    case 'postdocs':
+                        $return_array['wgs']['earthsci:' . $dept . '-postdocs'] = 'earthsci:' . $dept . '-postdocs';
+                        break;
+                    case 'students':
+                    case 'graduate':
+                    case 'phd':
+                    case 'masters':
+                    case 'undergraduate':
+                        if ($ptype != 'undergraduate') {
+                            $return_array['wgs']['earthsci:' . $dept . '-students-graduate'] = 'earthsci:' . $dept . '-studnets-graduate';
+                        }
+                        if ($dept != 'eess' && ($ptype == 'students' || $ptype == 'undergraduate')) {
+                            $return_array['wgs']['earthsci:' . $dept . '-students-undergraduate'] = 'earthsci:' . $dept . '-students-undergraduate';
+                        }
+                        break;
+                    case 'staff':
+                    case 'admin':
+                    case 'teaching':
+                        if ($dept == 'esys' && ($ptype == 'teaching' || $ptype == 'staff')) {
+                            $return_array['wgs']['earthsci:'.$dept.'-staff-teaching'] = 'earthsci:'.$dept.'-staff-teaching';
+                        }
+                        if ($ptype == 'staff' || $ptype == 'admin') {
+                            $return_array['wgs']['earthsci:' . $dept . '-staff-admin'] = 'earthsci:' . $dept . '-staff-admin';
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+    return $return_array;
+}
+
 function _ses_custom_wg_validate($form, &$form_state) {
+    if ($form['#id'] == 'views-exposed-form-people-ess-all') {
+        /*
+                             $form['tmp_associate_type']['#options']['Faculty'] = 'All Faculty';
+                    $form['tmp_associate_type']['#options']['Regular'] = 'Regular Faculty';
+                    $form['tmp_associate_type']['#options']['Emeritus'] = 'Emeritus Faculty';
+                    $form['tmp_associate_type']['#options']['Affiliated'] = 'Affiliated Faculty';
+                    $form['tmp_associate_type']['#options']['Postdocs'] = 'Postdocs';
+                    $form['tmp_associate_type']['#options']['Students'] = 'All Graduate Students';
+                    $form['tmp_associate_type']['#options']['PhD'] = 'PhD Students';
+                    $form['tmp_associate_type']['#options']['Masters'] = 'Masters Students';
+                    $form['tmp_associate_type']['#options']['Staff'] = 'All Staff';
+                    $form['tmp_associate_type']['#options']['Admin'] = 'Administrative Staff';
+                    $form['tmp_associate_type']['#options']['Research'] = 'Research Staff';
+                    $form['tmp_associate_type']['#options']['Teaching'] = 'Teaching Staff';
+
+         */
+        $dept = 'eess';
+        $form_state['values']['field_ses_phd_student_value'] = 'All';
+        switch ($form_state['values']['tmp_associate_type']) {
+            case 'Faculty':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:'.$dept.'-faculty-regular' => 'earthsci:'.$dept.'-faculty-regular',
+                    'earthsci:'.$dept.'-faculty-emeritus' => 'earthsci:'.$dept.'-faculty-emeritus',
+                    'earthsci:'.$dept.'-faculty-affiliated' => 'earthsci:'.$dept.'-faculty-affiliated',
+                );
+                break;
+            case 'Regular':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:'.$dept.'-faculty-regular' => 'earthsci:'.$dept.'-faculty-regular',
+                );
+                break;
+            case 'Emeritus':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:'.$dept.'-faculty-emeritus' => 'earthsci:'.$dept.'-faculty-emeritus',
+                );
+                break;
+            case 'Affiliated':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:'.$dept.'-faculty-affiliated' => 'earthsci:'.$dept.'-faculty-affiliated',
+                );
+                break;
+            case 'Postdocs':
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:'.$dept.'-postdocs' => 'earthsci:'.$dept.'-postdocs',
+                );
+                break;
+            case 'Students':
+                // if eiper or esys or has undergrads, adjust accordingly
+                $form_state['values']['field_ses_workgroup_membership_value'] = array(
+                    'earthsci:'.$dept.'-students-graduate' => 'earthsci:'.$dept.'-students-graduate',
+                );
+                break;
+        }
+        $xyz  = 1;
+    }
     if ($form['#id'] == 'views-exposed-form-people-eiper-all') {
         switch ($form_state['values']['tmp_associate_type']) {
             case 'Faculty':
@@ -445,7 +655,7 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL) {
 
   // read in our wmd4 array matching Drupal uids to SUNet IDs
   $result = db_query("SELECT authname,uid FROM {authmap} WHERE uid in ".
-    "(SELECT uid FROM users WHERE status = 1)");
+    "(SELECT uid FROM users)");
   foreach ($result as $row) {
     $ses_custom_uid_array[$row->authname] = array('uid'=>$row->uid,
                                                   'wgs'=>array(),
@@ -556,7 +766,9 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
             $processed = false;
             if (array_key_exists($sunet,$ses_custom_uid_array)) {
                 $uid = $ses_custom_uid_array[$sunet]['uid'];
-                $processed = $ses_custom_uid_array[$sunet]['processed'];
+                if (isset($ses_custom_uid_array[$sunet]['processed'])) {
+                    $processed = $ses_custom_uid_array[$sunet]['processed'];
+                }
             }
             if (!$processed) {
               $uid = _ses_custom_update_single_account($sunet, $uid, $wg_member, $group);
@@ -571,7 +783,7 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
 }
 
 // update or create a user account for each person in our workgroup
-function _ses_custom_update_single_account($sunet = '', $uid = null,
+ function _ses_custom_update_single_account($sunet = '', $uid = null,
                                            $wg_member = array(),$group=null) {
 
     if (empty($sunet)) return FALSE;
@@ -580,6 +792,8 @@ function _ses_custom_update_single_account($sunet = '', $uid = null,
     // if they already have an account, load it, otherwise create account
     if (!empty($uid)) {
         $user = user_load($uid);
+        // don't process blocked users
+        if ($user !== false && $user->status == 0) return $uid;
     } else {
         //set up the user fields
         $role_array = array(DRUPAL_AUTHENTICATED_RID => 'authenticated user');
@@ -679,6 +893,9 @@ function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
  *
  */
 function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
+
+    global $ses_custom_wg_members;
+
     /* if the profile is not for faculty, we don't want any academic appointment items from CAP */
     if (!empty($fields['field_cap_academic_appointments']) && isset($profileObj)
          && !empty($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE])) {
@@ -700,10 +917,16 @@ function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
             $shortie = substr($shortie,0,strpos($shortie,', admitted'));
         }
         $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'] = str_replace('Petroleum','Energy Resources',$shortie);
-        if (strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
-            print 'PhD Student: '.$shortie.' name: '.$profileObj->name.'<br />';
+
+        // see if this is a PhD student by looking at the EIPER workgroup and the CAP title and set the phd_student field
+        $fields['ses_phd_student'] = array(LANGUAGE_NONE=>array(array('value'=>"0")));
+        if (array_key_exists($fields['field_cap_sunet_id'][LANGUAGE_NONE][0]['value'],
+                $ses_custom_wg_members['earthsci:eiper-students-graduate-phd']) ||
+            strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
+            $fields['field_ses_phd_student'][LANGUAGE_NONE][0]['value'] = "1";
         }
     }
+
 }
 
 /*
