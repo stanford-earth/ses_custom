@@ -156,7 +156,6 @@ function _ses_custom_profile_override_pre_render($element)
  */
 function ses_custom_form_alter(&$form, &$form_state, $form_id)
 {
-    watchdog('debug','formid: '.$form_id.' ' .$form['#id']);
     // build some fake view filter forms that we will later match to workgroups
     if ($form_id == 'views_exposed_form') {
         if (in_array($form['#id'], array('views-exposed-form-people-ess-all', 'views-exposed-form-people-ere-all',
