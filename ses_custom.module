@@ -968,7 +968,7 @@ function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
                     }
                 }
             } else {
-                // _ses_custom_update_contact_from_ldap($sunet,intval($subarray['uid']));
+                 _ses_custom_update_contact_from_ldap($sunet,intval($subarray['uid']));
             }
         }
     }
