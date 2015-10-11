@@ -3,6 +3,7 @@
     $(document).ready(function() {
 
         $('#edit-field-ses-workgroup-membership-value-wrapper').hide();
+        $('#edit-field-ses-phd-student-value-wrapper').hide();
         $('.view-id-people >> .views-summary').addClass('btn');
         //$('.view-display-id-glossary >> .views-summary').addClass('btn');
         var subUrl = '';

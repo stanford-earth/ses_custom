@@ -1,9 +1,14 @@
 <?php
 
+function ses_custom_init() {
+    drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom_people.js');
+}
+
 /*
  * implementation of hook_menu
  */
-function ses_custom_menu() {
+function ses_custom_menu()
+{
     $items = array();
     $items['add_or_update_sunet_user'] = array(
         'title' => 'Manually Add or Update SUNet User from workgroup',
@@ -35,45 +40,49 @@ function ses_custom_menu() {
     return $items;
 }
 
-function _ses_custom_show_workgroup_members($workgroup) {
+function _ses_custom_show_workgroup_members($workgroup)
+{
     $account = user_load(683);
-    print '<pre>'; print_r($account);print '</pre>';
+    print '<pre>';
+    print_r($account);
+    print '</pre>';
     return;
 
-  global $ses_mais_crt_path, $ses_mais_key_path;
-  // get the workgroup members as an array
-  $wg_members = _ses_custom_get_workgroup_members($workgroup,$ses_mais_crt_path, $ses_mais_key_path);
-  print 'workgroup: '.$workgroup.'<pre>';
-  print_r($wg_members);
-  print '</pre>';
-}
-
-function _ses_custom_mailchimp_csv() {
     global $ses_mais_crt_path, $ses_mais_key_path;
     // get the workgroup members as an array
-    $wg_members = _ses_custom_get_workgroup_members('earthsci:drupal-accounts',$ses_mais_crt_path, $ses_mais_key_path);
+    $wg_members = _ses_custom_get_workgroup_members($workgroup, $ses_mais_crt_path, $ses_mais_key_path);
+    print 'workgroup: ' . $workgroup . '<pre>';
+    print_r($wg_members);
+    print '</pre>';
+}
+
+function _ses_custom_mailchimp_csv()
+{
+    global $ses_mais_crt_path, $ses_mais_key_path;
+    // get the workgroup members as an array
+    $wg_members = _ses_custom_get_workgroup_members('earthsci:drupal-accounts', $ses_mais_crt_path, $ses_mais_key_path);
     $output = '';
     if (empty($wg_members)) {
-        watchdog('ses_custom','Empty or unable to get workgroup members for ' . $group);
-        drupal_set_message('Empty or unable to check access workgroup '.$group.' for MailChimp csv');
+        watchdog('ses_custom', 'Empty or unable to get workgroup members for ' . $group);
+        drupal_set_message('Empty or unable to check access workgroup ' . $group . ' for MailChimp csv');
         return '';
     } else {
         header('Content-Type: application/excel');
         header('Content-Disposition: attachment; filename="mailchimp.csv"');
-        $mc_array = array('Email Address','Last Name','First Name');
-        $fp = fopen('php://output','w');
-        fputcsv($fp,$mc_array);
-        foreach($wg_members as $sunet => $member) {
+        $mc_array = array('Email Address', 'Last Name', 'First Name');
+        $fp = fopen('php://output', 'w');
+        fputcsv($fp, $mc_array);
+        foreach ($wg_members as $sunet => $member) {
             $email = $sunet . '@stanford.edu';
-            if (strpos($member['directory_name'],',') !== FALSE) {
-                $lastname = substr($member['directory_name'],0,strpos($member['directory_name'],','));
-                $firstname = substr($member['directory_name'],strpos($member['directory_name'],',')+2);
+            if (strpos($member['directory_name'], ',') !== FALSE) {
+                $lastname = substr($member['directory_name'], 0, strpos($member['directory_name'], ','));
+                $firstname = substr($member['directory_name'], strpos($member['directory_name'], ',') + 2);
             } else {
                 $lastname = $member['directory_name'];
                 $firstname = '';
             }
-            $mc_array = array($email,$lastname,$firstname);    
-            fputcsv($fp,$mc_array,',','"');
+            $mc_array = array($email, $lastname, $firstname);
+            fputcsv($fp, $mc_array, ',', '"');
         }
         fclose($fp);
     } // if workgroup has members
@@ -82,14 +91,16 @@ function _ses_custom_mailchimp_csv() {
 /*
  * implementation of hook_user_login
  */
-function ses_custom_user_login(&$edit, $account) {
+function ses_custom_user_login(&$edit, $account)
+{
     // if this is an alumni user account, log it out
-    if (!empty($account->field_alumnus) && $account->field_alumnus[LANGUAGE_NONE][0]['value']==1) {
+    if (!empty($account->field_alumnus) && $account->field_alumnus[LANGUAGE_NONE][0]['value'] == 1) {
         user_logout();
     }
 }
 
-function _ses_custom_hide_or_disable_form_field(&$form, $field_name, $todo = 'hide') {
+function _ses_custom_hide_or_disable_form_field(&$form, $field_name, $todo = 'hide')
+{
     if ($todo === 'hide') {
         $form[$field_name]['#type'] = 'hidden';
     } elseif ($todo === 'disable') {
@@ -97,44 +108,45 @@ function _ses_custom_hide_or_disable_form_field(&$form, $field_name, $todo = 'hi
     }
 }
 
-function _ses_custom_profile_override_pre_render($element) {
+function _ses_custom_profile_override_pre_render($element)
+{
     if (!empty($element[LANGUAGE_NONE][0]['#field_name'])) {
         $fields = array(
-            'field_ses_title_override' => array('cap_field_name'=>array('field_cap_short_title',),
-                                                'start_text'=>'Your StanfordWho title is ',
-                                               ),
-            'field_office_location' => array('cap_field_name'=>array('field_cap_address',),
-                                             'start_text'=>'Your StanfordWho address is ',
-                                            ),
-            'field_phone' => array('cap_field_name'=>array('field_cap_primary_phone',),
-                                   'start_text'=>'Your StanfordWho primary phone number is ',
-                                  ),
-            'field_fax' => array('cap_field_name'=>array('field_cap_fax',),
-                                 'start_text'=>'Your StanfordWho fax number is ',
-                                ),
-            'field_stanford_email' => array('cap_field_name'=>array('field_cap_primary_email',),
-                                            'start_text'=>'Your StanfordWho primary email is ',
-                                           ),
-            'field_ses_research_override' => array('cap_field_name'=>array('field_cap_research_terse',
-                                                                           'field_cap_research_short',),
-                                                   'start_text'=>'Your Stanford Profile research field is ',
-                                             ),
+            'field_ses_title_override' => array('cap_field_name' => array('field_cap_short_title',),
+                'start_text' => 'Your StanfordWho title is ',
+            ),
+            'field_office_location' => array('cap_field_name' => array('field_cap_address',),
+                'start_text' => 'Your StanfordWho address is ',
+            ),
+            'field_phone' => array('cap_field_name' => array('field_cap_primary_phone',),
+                'start_text' => 'Your StanfordWho primary phone number is ',
+            ),
+            'field_fax' => array('cap_field_name' => array('field_cap_fax',),
+                'start_text' => 'Your StanfordWho fax number is ',
+            ),
+            'field_stanford_email' => array('cap_field_name' => array('field_cap_primary_email',),
+                'start_text' => 'Your StanfordWho primary email is ',
+            ),
+            'field_ses_research_override' => array('cap_field_name' => array('field_cap_research_terse',
+                'field_cap_research_short',),
+                'start_text' => 'Your Stanford Profile research field is ',
+            ),
         );
         $override_field_name = $element[LANGUAGE_NONE][0]['#field_name'];
-        if (array_key_exists($override_field_name,$fields)) {
+        if (array_key_exists($override_field_name, $fields)) {
             $insert_text = 'empty. ';
             foreach ($fields[$override_field_name]['cap_field_name'] as $cap_field_name) {
                 if (!empty($element[LANGUAGE_NONE][0]['#entity']->{$cap_field_name})) {
-                    $insert_text = '"'.$element[LANGUAGE_NONE][0]['#entity']->{$cap_field_name}[LANGUAGE_NONE][0]['value'].'." ';
+                    $insert_text = '"' . $element[LANGUAGE_NONE][0]['#entity']->{$cap_field_name}[LANGUAGE_NONE][0]['value'] . '." ';
                     break;
                 }
-            } 
-            if ($override_field_name == 'field_ses_research_override') {
-                $element[LANGUAGE_NONE][0]['#description'] = $fields[$override_field_name]['start_text'].$insert_text.$element[LANGUAGE_NONE][0]['#description'];
-            } else {
-                $element[LANGUAGE_NONE][0]['value']['#description'] = $fields[$override_field_name]['start_text'].$insert_text.$element[LANGUAGE_NONE][0]['value']['#description'];
             }
-        }    
+            if ($override_field_name == 'field_ses_research_override') {
+                $element[LANGUAGE_NONE][0]['#description'] = $fields[$override_field_name]['start_text'] . $insert_text . $element[LANGUAGE_NONE][0]['#description'];
+            } else {
+                $element[LANGUAGE_NONE][0]['value']['#description'] = $fields[$override_field_name]['start_text'] . $insert_text . $element[LANGUAGE_NONE][0]['value']['#description'];
+            }
+        }
     }
     return $element;
 }
@@ -142,260 +154,220 @@ function _ses_custom_profile_override_pre_render($element) {
 /*
  * implementation of hook_form_alter
  */
-function ses_custom_form_alter(&$form, &$form_state, $form_id) {
-
-    // hide the email field on the user account form and
-    // load some jQuery to auto-add the primary affiliation to the secondary list
+function ses_custom_form_alter(&$form, &$form_state, $form_id)
+{
+    watchdog('debug','formid: '.$form_id.' ' .$form['#id']);
+    // build some fake view filter forms that we will later match to workgroups
     if ($form_id == 'views_exposed_form') {
-        if (in_array($form['#id'],array('views-exposed-form-people-ess-all'))) {
+        if (in_array($form['#id'], array('views-exposed-form-people-ess-all', 'views-exposed-form-people-ere-all',
+            'views-exposed-form-people-gs-page', 'views-exposed-form-people-gp-page',
+            'views-exposed-form-people-page'))) {
             $form['tmp_associate_type'] = array(
                 '#type' => 'select',
-                '#options' => array('All'=>'- All -'),
+                '#options' => array('all' => '- All -'),
                 '#size' => null,
-                '#default_value' => 'All',
+                '#default_value' => 'all',
             );
-            switch ($form['#id']) {
-                case 'views-exposed-form-people-ess-all':
-                    $form['tmp_associate_type']['#options']['Faculty'] = 'All Faculty';
-                    $form['tmp_associate_type']['#options']['Regular'] = 'Regular Faculty';
-                    $form['tmp_associate_type']['#options']['Emeritus'] = 'Emeritus Faculty';
-                    $form['tmp_associate_type']['#options']['Affiliated'] = 'Affiliated Faculty';
-                    $form['tmp_associate_type']['#options']['Postdocs'] = 'Postdocs';
-                    $form['tmp_associate_type']['#options']['Students'] = 'All Graduate Students';
-                    $form['tmp_associate_type']['#options']['PhD'] = 'PhD Students';
-                    $form['tmp_associate_type']['#options']['Masters'] = 'Masters Students';
-                    $form['tmp_associate_type']['#options']['Staff'] = 'All Staff';
-                    $form['tmp_associate_type']['#options']['Admin'] = 'Administrative Staff';
-                    $form['tmp_associate_type']['#options']['Research'] = 'Research Staff';
-                    $form['tmp_associate_type']['#options']['Teaching'] = 'Teaching Staff';
-                    break;
+            $form['tmp_associate_type']['#options']['faculty'] = 'All Faculty';
+            $form['tmp_associate_type']['#options']['regular'] = 'Regular Faculty';
+            $form['tmp_associate_type']['#options']['emeritus'] = 'Emeritus Faculty';
+            $form['tmp_associate_type']['#options']['affiliated'] = 'Affiliated Faculty';
+            $form['tmp_associate_type']['#options']['postdocs'] = 'Post Doctoral Scholars';
+            if ($form['#id'] != 'views-exposed-form-people-ess-all') {
+                $form['tmp_associate_type']['#options']['students'] = 'All Students';
             }
-            $new_info = array('filter-tmp-associate-type'=>array('label'=>'Type', 'value'=>'tmp_associate_type'));
-            $form['#info'] = array_merge($new_info,$form['#info']);
-            if (!isset($form['#validate'])) $form['#validate']=array();
-            $form['#validate'] = array_merge(array('_ses_custom_wg_validate'),$form['#validate']);
+            $form['tmp_associate_type']['#options']['graduate'] = 'All Graduate Students';
+            $form['tmp_associate_type']['#options']['phd'] = 'PhD Students';
+            $form['tmp_associate_type']['#options']['masters'] = 'Masters Students';
+            if ($form['#id'] != 'views-exposed-form-people-ess-all') {
+                $form['tmp_associate_type']['#options']['undergraduate'] = 'Undergraduate Students';
+            }
+            $form['tmp_associate_type']['#options']['staff'] = 'All Staff';
+            $form['tmp_associate_type']['#options']['admin'] = 'Administrative Staff';
+            $form['tmp_associate_type']['#options']['research'] = 'Research Staff';
+            if ($form['#id'] == 'views-exposed-form-people-ess-all') {
+                $form['tmp_associate_type']['#options']['teaching'] = 'Teaching Staff';
+            }
+            $new_info = array('filter-tmp-associate-type' => array('label' => 'Type', 'value' => 'tmp_associate_type'));
+            if ($form['#id'] == 'views-exposed-form-people-page') {
+                $form['tmp_affiliation'] = array(
+                    '#type' => 'select',
+                    '#options' => array('all' => '- All -'),
+                    '#size' => null,
+                    '#default_value' => 'all',
+                );
+                $form['tmp_affiliation']['#options']['deans'] = "Dean's Office";
+                $form['tmp_affiliation']['#options']['esys'] = 'Earth Systems';
+                $form['tmp_affiliation']['#options']['eiper'] = 'E-IPER';
+                $form['tmp_affiliation']['#options']['ere'] = "Energy Resources Engineering";
+                $form['tmp_affiliation']['#options']['eess'] = 'Earth System Science';
+                $form['tmp_affiliation']['#options']['ges'] = 'Geological Sciences';
+                $form['tmp_affiliation']['#options']['geophysics'] = 'Geophysics';
+                $new_info['filter-tmp-affiliation'] = array('label' => 'Affiliation', 'value' => 'tmp_affiliation');
+            }
+            $form['#info'] = array_merge($new_info, $form['#info']);
+            if (!isset($form['#validate'])) $form['#validate'] = array();
+            $form['#validate'] = array_merge(array('_ses_custom_wg_validate'), $form['#validate']);
         }
-
-        //$vid = _ses_custom_get_personnel_vid('profile_personnel_types');
-        //$tree = taxonomy_get_tree($vid);
-//        $ptypes = array('All'=>'- All -');
-        //foreach ($tree as $option) {
-        //    $ptypes[$option->tid] = $option->name;
-        //}
- //       $ptype_field = array(
-   //         '#type' => 'select',
-     //       '#options' => $ptypes,
-       //     '#size' => null,
-         //   '#default_value' => 'All',
- //       );
-   //     $affils = array("All"=>"- All -","Dean's Office"=>"Dean's Office","E-IPER"=>"E-IPER","ESS"=>"Earth System Science",
-     //       "Earth Systems"=>"Earth Systems Program","ERE"=>"Energy Resources Engineering","GS"=>"Geological Sciences",
-       //     "Geophysics"=>"Geophysics");
-  //      $affils_field = array(
-    //        '#type' => 'select',
-      //      '#options' => $affils,
-        //    '#size' => null,
-          //  '#default_value' => 'All',
-      //  );
-        /*
-        if ($form['#id'] == 'views-exposed-form-people-eiper-all') {
-            drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom.js');
-            drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom.css');
-            $etypes = array('All'=>'- All -','Faculty'=>'Faculty','Students'=>'All Students','PhD'=>'PhD Students',
-                'MS'=>'MS Students','Staff'=>'Staff');
-            $form['tmp_associate_type'] = array(
-                '#type' => 'select',
-                '#options' => $etypes,
-                '#size' => null,
-                '#default_value' => 'All',
-            );
-            //$form['field_ses_workgroup_membership_value']['#type'] = 'hidden';
-            //unset($form['#info']['filter-field_ses_workgroup_membership_value']['label']);
-            $new_info = array('filter-tmp-associate-type'=>array('label'=>'Type', 'value'=>'tmp_associate_type'));
-            $form['#info'] = array_merge($new_info,$form['#info']);
-            if (!isset($form['#validate'])) $form['#validate']=array();
-            $form['#validate'] = array_merge(array('_ses_custom_wg_validate'),$form['#validate']);
-        }
-        */
-        //$form['field_ses_affiliation_workgroups_value']['#type'] = 'hidden';
-        //unset($form['#info']['filter-field_ses_affiliation_workgroups_value']['label']);
-        /*
-        if ($form['#id'] == 'views-exposed-form-people-page') {
-            $form['tmp_associate_type'] = array(
-                '#type' => 'select',
-                '#options' => $ptypes,
-                '#size' => null,
-                '#default_value' => 'All',
-            );
-            $form['tmp_affiliation'] = array(
-                '#type' => 'select',
-                '#options' => $affils,
-                '#size' => null,
-                '#default_value' => 'All',
-            );
-            $new_info = array('filter-tmp_associate_type'=>array('label'=>'Type', 'value'=>'tmp_associate_type'),
-                'filter-tmp_affiliation'=>array('label'=>'Affiliation', 'value'=>'tmp_affiliation'));
-            $form['#info'] = array_merge($new_info,$form['#info']);
-        }
-        */
     } else if ($form_id == 'user_profile_form') {
 
-        foreach (array('field_ses_title_override','field_office_location','field_phone','field_fax','field_stanford_email','field_ses_research_override') as $field_name) {
+        foreach (array('field_ses_title_override', 'field_office_location', 'field_phone', 'field_fax', 'field_stanford_email', 'field_ses_research_override') as $field_name) {
             if (!isset($form[$field_name]['#pre_render'])) $form[$field_name]['#pre_render'] = array();
             $form[$field_name]['#pre_render'][] = '_ses_custom_profile_override_pre_render';
         }
 
         global $user, $base_url;
         drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom.js');
-        drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom.css');
+        drupal_add_css(drupal_get_path('module', 'ses_custom') . '/ses_custom.css');
 
         // hide or disable form fields based on the user role
 
         $form['account']['mail']['#type'] = 'hidden';
-        $hide_cap_fields  = TRUE;
+        $hide_cap_fields = TRUE;
         if (isset($form['#user']) && isset($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) && intval($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) == 1) {
             $hide_cap_fields = FALSE;
         }
-        drupal_add_js(array('hideCapFields' => $hide_cap_fields),'setting');
+        drupal_add_js(array('hideCapFields' => $hide_cap_fields), 'setting');
         if ($hide_cap_fields) {
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_primary_phone');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_primary_email');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_fax');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_address');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_short_address');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_profile_image','disable');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_research_short');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_research_terse');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_short_title');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_alternate_label');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_alternate_name');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_alternate_title');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_alternate_email');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_alternate_phone');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_academic_appointments');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_admin_appointments');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_bio');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_international');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_courses_taught');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_research');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_current_stanford_role');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_education');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_grad_fellowship');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_honors_and_awards');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_internet_links');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_keywords');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_lab_affiliations');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_patents');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_personal_interests');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_postdoc_advisees');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_presentations');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_professional_interests');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_professional_orgs');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_projects');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_publications');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_service_work');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_stanford_advisors');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_profile_link');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_sunet_id');
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_work_experience');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_primary_phone');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_primary_email');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_fax');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_address');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_short_address');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_image', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research_short');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research_terse');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_short_title');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_label');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_name');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_title');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_email');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_phone');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_academic_appointments');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_admin_appointments');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_bio');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_international');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_courses_taught');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_current_stanford_role');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_education');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_grad_fellowship');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_honors_and_awards');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_internet_links');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_keywords');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_lab_affiliations');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_patents');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_personal_interests');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_postdoc_advisees');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_presentations');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_professional_interests');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_professional_orgs');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_projects');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_publications');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_service_work');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_stanford_advisors');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_link');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_sunet_id');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_work_experience');
         }
 
         // only allow the non-cap bio field for those with the field checked
         if (!isset($form['#user']) || !isset($form['#user']->field_ses_non_cap_profile[LANGUAGE_NONE][0]['value']) || intval($form['#user']->field_ses_non_cap_profile[LANGUAGE_NONE][0]['value']) != 1) {
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_non_cap_bio');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_non_cap_bio');
         }
 
         // hide advisees_degrees and advisee_publications from all except regular faculty
         // note: this code is disabled for now; these fields are disabled for all except superuser below
 //        if (!isset($form['#user']) || !isset($form['#user']->field_personnel_type[LANGUAGE_NONE][0]['value']) || $form['#user']->field_personnel_type[LANGUAGE_NONE][0]['value'] !== 'Faculty - Regular') {
         if (empty($user) || $user->uid !== 1) {
-            _ses_custom_hide_or_disable_form_field($form,'field_cv_advisees_degrees');
-            _ses_custom_hide_or_disable_form_field($form,'field_cv_advisee_publications');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cv_advisees_degrees');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cv_advisee_publications');
         }
 
         // field settings for superuser or webeditor
-        if ($user->uid == 1 || in_array('webeditor',$user->roles)) {
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_profile_id','disable');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_research_group','disable');
+        if ($user->uid == 1 || in_array('webeditor', $user->roles)) {
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_id', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_research_group', 'disable');
             if ($user->uid != 1) {
-              _ses_custom_hide_or_disable_form_field($form,'field_account_directory_name','disable');
-              //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
-              _ses_custom_hide_or_disable_form_field($form,'field_ses_workgroup_membership', 'disable');
-              //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
-              //_ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
-              //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
+                _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name', 'disable');
+                //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
+                _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership', 'disable');
+                //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
+                _ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
+                //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
             }
-            _ses_custom_hide_or_disable_form_field($form,'field_title','disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_title', 'disable');
             if (!isset($form['#user']) || !isset($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) || intval($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) != 1) {
-                _ses_custom_hide_or_disable_form_field($form,'field_ses_alumni_program');
-                _ses_custom_hide_or_disable_form_field($form,'field_ses_alumni_year');
+                _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
+                _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
             }
 
-            drupal_add_js(array('allowDepartmentTab' => TRUE),'setting');
+            drupal_add_js(array('allowDepartmentTab' => TRUE), 'setting');
             if ($user->uid == 1) {
                 //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup','disable');
                 //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type','disable');
-                _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record','disable');
-                drupal_add_js(array('allowAdminTab' => TRUE),'setting');
+                _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record', 'disable');
+                drupal_add_js(array('allowAdminTab' => TRUE), 'setting');
             } else {
                 //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
                 //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
-                _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record');
-                drupal_add_js(array('allowAdminTab' => FALSE),'setting');
+                _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record');
+                drupal_add_js(array('allowAdminTab' => FALSE), 'setting');
             }
         } else {
-            _ses_custom_hide_or_disable_form_field($form,'field_cap_profile_id');
-            _ses_custom_hide_or_disable_form_field($form,'field_account_directory_name');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_research_group');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_id');
+            _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_research_group');
             //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations');
-            //_ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations');
-            _ses_custom_hide_or_disable_form_field($form,'field_title');
+            _ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations');
+            _ses_custom_hide_or_disable_form_field($form, 'field_title');
             //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type');
             //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
             //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
             //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_workgroup_membership');
-            _ses_custom_hide_or_disable_form_field($form,'field_stanford_profile_record');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_non_cap_profile');
-            _ses_custom_hide_or_disable_form_field($form,'field_alumnus');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_alumni_program');
-            _ses_custom_hide_or_disable_form_field($form,'field_ses_alumni_year');
-            drupal_add_js(array('allowAdminTab' => FALSE),'setting');
-            drupal_add_js(array('allowDepartmentTab' => FALSE),'setting');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership');
+            _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_non_cap_profile');
+            _ses_custom_hide_or_disable_form_field($form, 'field_alumnus');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
+            drupal_add_js(array('allowAdminTab' => FALSE), 'setting');
+            drupal_add_js(array('allowDepartmentTab' => FALSE), 'setting');
         }
 
         // set up some information and links at the top of the form
         if (isset($form['#user']->field_cap_profile_link[LANGUAGE_NONE][0]['value'])) {
-            $cap_verbiage ='<br />Only a small number of profile fields may be edited on this page. The remainder come from either your directory information at <a "href=https://stanfordyou.stanford.edu">StanfordYou</a> or your profile on the Stanford Profiles system which may be edited by clicking this button:<br /><a href="https://cap.stanford.edu/profiles/auth/edit" class="button">Edit Stanford Profile</a><br />Note: if you are editing a profile for someone else, this button will bring you to *your* Stanford profile.';
+            $cap_verbiage = '<br />Only a small number of profile fields may be edited on this page. The remainder come from either your directory information at <a "href=https://stanfordyou.stanford.edu">StanfordYou</a> or your profile on the Stanford Profiles system which may be edited by clicking this button:<br /><a href="https://cap.stanford.edu/profiles/auth/edit" class="button">Edit Stanford Profile</a><br />Note: if you are editing a profile for someone else, this button will bring you to *your* Stanford profile.';
             $cap_verbiage .= '<br /><br />After editing your information in StanfordYou or the Stanford Profiles system ';
         } else {
             $cap_verbiage = '<br />Most of the information on this profile page comes from your directory information at <"href=https://stanfordyou.stanford.edu">StanfordYou</a>';
             $cap_verbiage .= '<br /><br />After editing your information in StanfordYou ';
         }
-        $cap_verbiage .= 'you can wait for the nightly update to see the edits reflected here or you can click this button to update this page immediately: <a href="'.$base_url.'/update_profile/'.$form['#user']->field_cap_sunet_id[LANGUAGE_NONE][0]['value'].'" class="button">Refresh</a><br />';
+        $cap_verbiage .= 'you can wait for the nightly update to see the edits reflected here or you can click this button to update this page immediately: <a href="' . $base_url . '/update_profile/' . $form['#user']->field_cap_sunet_id[LANGUAGE_NONE][0]['value'] . '" class="button">Refresh</a><br />';
         $cap_verbiage .= "<br />Information updated here will *not* be posted back to StanfordYou or Stanford Profiles, but will be displayed only on the School of Earth, Energy & Environmental Sciences directory and profile pages.";
-        $form['#prefix'] = '<div>'.$cap_verbiage.'</div>';
+        $form['#prefix'] = '<div>' . $cap_verbiage . '</div>';
 
     } // user_profile_form
     else if ($form_id == 'webform_client_form_48281') {
-        drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom.css');
+        drupal_add_css(drupal_get_path('module', 'ses_custom') . '/ses_custom.css');
     }
 }
 
-function _ses_custom_build_wg_selection($department, $personnel_type) {
+function _ses_custom_build_wg_selection($department, $personnel_type)
+{
     $dept_array = array();
     switch ($department) {
         case 'deans':
-        case 'ess':
+        case 'eess':
         case 'ere':
-        case 'gs':
+        case 'ges':
         case 'geophysics':
         case 'eiper':
         case 'esys':
             $dept_array = array($department);
             break;
         default:
-            $dept_array = array('deans','ess','ere','gs','geophysics','eiper','esys');
+            $dept_array = array('deans', 'eess', 'ere', 'ges', 'geophysics', 'eiper', 'esys');
     }
     $ptype_array = array();
     switch ($personnel_type) {
@@ -416,20 +388,34 @@ function _ses_custom_build_wg_selection($department, $personnel_type) {
             $ptype_array = array($personnel_type);
             break;
         default:
-            $ptype_array = array('regular','emeritus','affiliated','postdocs','graduate','undergraduate','admin','research','teaching');
+            $ptype_array = array('regular', 'emeritus', 'affiliated', 'postdocs', 'graduate', 'undergraduate', 'admin', 'research', 'teaching');
     }
-    $return_array = array('wgs'=>array(), 'phds'=>'All');
+    $return_array = array('wgs' => array(), 'phds' => 'All');
     foreach ($dept_array as $dept) {
-        if ($dept == 'deans') {
-            $return_array['wgs']['earthsci:deans-office'] = 'earthsci:deans-office';
-        } else foreach ($ptype_array as $ptype) {
-            if ($dept == 'eiper' || $dept == 'esys') {
+        foreach ($ptype_array as $ptype) {
+            if ($dept == 'deans') {
+                switch ($ptype) {
+                    case 'faculty':
+                    case 'regular':
+                        $return_array['wgs']['earthsci:' .$dept . '-office-faculty'] =
+                            'earthsci:' . $dept . '-office-faculty';
+                        break;
+                    case 'staff':
+                    case 'admin':
+                        $return_array['wgs']['earthsci:' . $dept . '-office-staff'] =
+                            'earthsci:' . $dept . '-office-staff';
+                        break;
+                }
+            }
+            else if ($dept == 'eiper' || $dept == 'esys') {
                 switch ($ptype) {
                     case 'faculty':
                     case 'regular':
                     case 'emeritus':
                     case 'affiliated':
-                        $return_array['wgs']['earthsci:' . $dept . '-faculty'] = 'earthsci:' . $dept . '-faculty';
+                        if ($ptype == 'affiliated' || count($dept_array) == 1) {
+                            $return_array['wgs']['earthsci:' . $dept . '-faculty'] = 'earthsci:' . $dept . '-faculty';
+                        }
                         break;
                     case 'students':
                     case 'graduate':
@@ -437,20 +423,27 @@ function _ses_custom_build_wg_selection($department, $personnel_type) {
                     case 'masters':
                     case 'undergraduate':
                         if ($dept == 'eiper' && ($ptype == 'students' || $ptype == 'graduate' || $ptype == 'phd')) {
-                            $return_array['wgs']['earthsci:'.$dept.'-students-graduate-phd'] = 'earthsci:'.$dept.'-students-graduate-phd';
+                            $return_array['wgs']['earthsci:' . $dept . '-students-graduate-phd'] = 'earthsci:' . $dept . '-students-graduate-phd';
                         }
                         if (($dept == 'esys' && $ptype != 'undergraduate') || ($dept == 'eiper' && $ptype != 'phd' && $ptype != 'undergraduate')) {
                             $return_array['wgs']['earthsci:' . $dept . '-students-graduate'] = 'earthsci:' . $dept . '-students-graduate';
                         }
                         if ($dept == 'esys' && ($ptype == 'students' || $ptype == 'undergraduate')) {
-                            $return_array['wgs']['earthsci:'.$dept.'-students-undergraduate'] = 'earthsci:'.$dept.'-students-undergraduate';
+                            $return_array['wgs']['earthsci:' . $dept . '-students-undergraduate'] = 'earthsci:' . $dept . '-students-undergraduate';
+                        }
+                        if (count($ptype_array) == 1) {
+                            if ($ptype == 'phd') {
+                                $return_array['phds'] = '1';
+                            } else if ($ptype == 'masters') {
+                                $return_array['phds'] = '0';
+                            }
                         }
                         break;
                     case 'staff':
                     case 'admin':
                     case 'teaching':
                         if ($dept == 'esys' && ($ptype == 'teaching' || $ptype == 'staff')) {
-                            $return_array['wgs']['earthsci:'.$dept.'-staff-teaching'] = 'earthsci:'.$dept.'-staff-teaching';
+                            $return_array['wgs']['earthsci:' . $dept . '-staff-teaching'] = 'earthsci:' . $dept . '-staff-teaching';
                         }
                         if ($ptype == 'staff' || $ptype == 'admin') {
                             $return_array['wgs']['earthsci:' . $dept . '-staff-admin'] = 'earthsci:' . $dept . '-staff-admin';
@@ -464,7 +457,7 @@ function _ses_custom_build_wg_selection($department, $personnel_type) {
                         $return_array['wgs']['earthsci:' . $dept . '-faculty-emeritus'] = 'earthsci:' . $dept . '-faculty-emeritus';
                         $return_array['wgs']['earthsci:' . $dept . '-faculty-affiliated'] = 'earthsci:' . $dept . '-faculty-affiliated';
                         break;
-                    case 'faculty':
+                    case 'regular':
                         $return_array['wgs']['earthsci:' . $dept . '-faculty-regular'] = 'earthsci:' . $dept . '-faculty-regular';
                         break;
                     case 'emeritus':
@@ -482,125 +475,59 @@ function _ses_custom_build_wg_selection($department, $personnel_type) {
                     case 'masters':
                     case 'undergraduate':
                         if ($ptype != 'undergraduate') {
-                            $return_array['wgs']['earthsci:' . $dept . '-students-graduate'] = 'earthsci:' . $dept . '-studnets-graduate';
+                            $return_array['wgs']['earthsci:' . $dept . '-students-graduate'] = 'earthsci:' . $dept . '-students-graduate';
                         }
                         if ($dept != 'eess' && ($ptype == 'students' || $ptype == 'undergraduate')) {
                             $return_array['wgs']['earthsci:' . $dept . '-students-undergraduate'] = 'earthsci:' . $dept . '-students-undergraduate';
                         }
+                        if (count($ptype_array) == 1) {
+                            if ($ptype == 'phd') {
+                                $return_array['phds'] = '1';
+                            } else if ($ptype == 'masters') {
+                                $return_array['phds'] = '0';
+                            }
+                        }
                         break;
                     case 'staff':
                     case 'admin':
+                    case 'research':
                     case 'teaching':
-                        if ($dept == 'esys' && ($ptype == 'teaching' || $ptype == 'staff')) {
-                            $return_array['wgs']['earthsci:'.$dept.'-staff-teaching'] = 'earthsci:'.$dept.'-staff-teaching';
-                        }
                         if ($ptype == 'staff' || $ptype == 'admin') {
                             $return_array['wgs']['earthsci:' . $dept . '-staff-admin'] = 'earthsci:' . $dept . '-staff-admin';
+                        }
+                        if ($ptype == 'staff' || $ptype == 'research') {
+                            $return_array['wgs']['earthsci:' . $dept . '-staff-research'] = 'earthsci:' . $dept . '-staff-research';
+                        }
+                        if ($dept == 'eess' && ($ptype == 'staff' || $ptype == 'teaching')) {
+                            $return_array['wgs']['earthsci:' . $dept . '-staff-teaching'] = 'earthsci:' . $dept . '-staff-teaching';
                         }
                         break;
                 }
             }
         }
     }
-
     return $return_array;
 }
 
-function _ses_custom_wg_validate($form, &$form_state) {
+function _ses_custom_wg_validate($form, &$form_state)
+{
+    $selections = array('wgs'=>array(),'phds'=>'All');
     if ($form['#id'] == 'views-exposed-form-people-ess-all') {
-        /*
-                             $form['tmp_associate_type']['#options']['Faculty'] = 'All Faculty';
-                    $form['tmp_associate_type']['#options']['Regular'] = 'Regular Faculty';
-                    $form['tmp_associate_type']['#options']['Emeritus'] = 'Emeritus Faculty';
-                    $form['tmp_associate_type']['#options']['Affiliated'] = 'Affiliated Faculty';
-                    $form['tmp_associate_type']['#options']['Postdocs'] = 'Postdocs';
-                    $form['tmp_associate_type']['#options']['Students'] = 'All Graduate Students';
-                    $form['tmp_associate_type']['#options']['PhD'] = 'PhD Students';
-                    $form['tmp_associate_type']['#options']['Masters'] = 'Masters Students';
-                    $form['tmp_associate_type']['#options']['Staff'] = 'All Staff';
-                    $form['tmp_associate_type']['#options']['Admin'] = 'Administrative Staff';
-                    $form['tmp_associate_type']['#options']['Research'] = 'Research Staff';
-                    $form['tmp_associate_type']['#options']['Teaching'] = 'Teaching Staff';
-
-         */
-        $dept = 'eess';
-        $form_state['values']['field_ses_phd_student_value'] = 'All';
-        switch ($form_state['values']['tmp_associate_type']) {
-            case 'Faculty':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:'.$dept.'-faculty-regular' => 'earthsci:'.$dept.'-faculty-regular',
-                    'earthsci:'.$dept.'-faculty-emeritus' => 'earthsci:'.$dept.'-faculty-emeritus',
-                    'earthsci:'.$dept.'-faculty-affiliated' => 'earthsci:'.$dept.'-faculty-affiliated',
-                );
-                break;
-            case 'Regular':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:'.$dept.'-faculty-regular' => 'earthsci:'.$dept.'-faculty-regular',
-                );
-                break;
-            case 'Emeritus':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:'.$dept.'-faculty-emeritus' => 'earthsci:'.$dept.'-faculty-emeritus',
-                );
-                break;
-            case 'Affiliated':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:'.$dept.'-faculty-affiliated' => 'earthsci:'.$dept.'-faculty-affiliated',
-                );
-                break;
-            case 'Postdocs':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:'.$dept.'-postdocs' => 'earthsci:'.$dept.'-postdocs',
-                );
-                break;
-            case 'Students':
-                // if eiper or esys or has undergrads, adjust accordingly
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:'.$dept.'-students-graduate' => 'earthsci:'.$dept.'-students-graduate',
-                );
-                break;
-        }
-        $xyz  = 1;
-    }
-    if ($form['#id'] == 'views-exposed-form-people-eiper-all') {
-        switch ($form_state['values']['tmp_associate_type']) {
-            case 'Faculty':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:eiper-faculty' => 'earthsci:eiper-faculty',
-                );
-                break;
-            case 'All Students':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:eiper-students-graduate-phd' => 'earthsci:eiper-students-graduate-phd',
-                    'earthsci:eiper-students-graduate' => 'earthsci:eiper-students-graduate',
-                );
-                break;
-            case 'PhD Students':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:eiper-students-graduate-phd' => 'earthsci:eiper-students-graduate-phd',
-                );
-                break;
-            case 'MS Students':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:eiper-students-graduate' => 'earthsci:eiper-students-graduate',
-                );
-                break;
-            case 'Staff':
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:eiper-staff-admin' => 'earthsci:eiper-staff-admin',
-                );
-                break;
-            case 'All':
-            default:
-                $form_state['values']['field_ses_workgroup_membership_value'] = array(
-                    'earthsci:eiper-faculty' => 'earthsci:eiper-faculty',
-                    'earthsci:eiper-students-graduate-phd' => 'earthsci:eiper-students-graduate-phd',
-                    'earthsci:eiper-students-graduate' => 'earthsci:eiper-students-graduate',
-                    'earthsci:eiper-staff-admin' => 'earthsci:eiper-staff-admin',
-                );
-                break;
+        $selections = _ses_custom_build_wg_selection('eess', $form_state['values']['tmp_associate_type']);
+    } else if ($form['#id'] == 'views-exposed-form-people-ere-all') {
+        $selections = _ses_custom_build_wg_selection('ere', $form_state['values']['tmp_associate_type']);
+    } else if ($form['#id'] == 'views-exposed-form-people-gs-page') {
+        $selections = _ses_custom_build_wg_selection('ges', $form_state['values']['tmp_associate_type']);
+    } else if ($form['#id'] == 'views-exposed-form-people-gp-page') {
+        $selections = _ses_custom_build_wg_selection('geophysics', $form_state['values']['tmp_associate_type']);
+    } else if ($form['#id'] == 'views-exposed-form-people-page') {
+        if (!empty($form_state['values']['tmp_affiliation'])) {
+            $selections = _ses_custom_build_wg_selection($form_state['values']['tmp_affiliation'],
+                $form_state['values']['tmp_associate_type']);
         }
     }
+    $form_state['values']['field_ses_workgroup_membership_value'] = $selections['wgs'];
+    $form_state['values']['field_ses_phd_student_value'] = $selections['phds'];
 }
 
 /*
@@ -629,112 +556,123 @@ function ses_custom_user_insert(&$edit, $account, $category)
     }
 }
 */
- 
+
 /*
  * implementation of hook_ses_cap_lite_preprocess_all
  *
  * return FALSE if we want to abort the profile update
  *
  */
-function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL) {
+function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
+{
 
-  // these are set in the settings.php file to use the Workgroups API
-  // cancel the update if we don't have them
-  // TODO: replace with use of encrypt and the variables table
-  global $ses_mais_crt_path, $ses_mais_key_path;
-  if (empty($ses_mais_crt_path) || empty($ses_mais_key_path)) {
-      watchdog('ses_custom','Missing cert file and/or key file for MAIS Workgroup API access');
-      return FALSE;
-  }
-
-  // set up some globals for our hooks
-  global $ses_custom_uid_array, $ses_custom_wg_members, $ses_custom_research_affils;
-  $ses_custom_uid_array = array();
-  $ses_custom_wg_members = array();
-  $ses_custom_research_affils = array();
-
-  // read in our wmd4 array matching Drupal uids to SUNet IDs
-  $result = db_query("SELECT authname,uid FROM {authmap} WHERE uid in ".
-    "(SELECT uid FROM users)");
-  foreach ($result as $row) {
-    $ses_custom_uid_array[$row->authname] = array('uid'=>$row->uid,
-                                                  'wgs'=>array(),
-                                                  'processed' => false,
-                                                 );
-  }
-
-  // read all of our workgroups and set up the wg_members array
-  $wg_text = trim(variable_get('ses_cap_lite_workgroups',''));
-  $wg_array = array();
-  if (!empty($wg_text)) $wg_array = explode("\n", $wg_text);
-  foreach ($wg_array as $workgroup) {
-    $workgroup = trim($workgroup);
-    $wg_members = _ses_custom_get_workgroup_members($workgroup,
-      $ses_mais_crt_path, $ses_mais_key_path);
-    if ($wg_members === FALSE) {
-      watchdog('ses_custom','Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting process.');
-      drupal_set_message('Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting Process.','error');
-      return FALSE;
-    } else {
-      $ses_custom_wg_members[$workgroup] = $wg_members;
-      foreach ($wg_members as $wg_member) {
-        if (!array_key_exists($wg_member['sunet'],$ses_custom_uid_array)) {
-          $ses_custom_uid_array[$wg_member['sunet']] = array('uid' => null,
-                                                             'wgs' => array());
-        }
-        $ses_custom_uid_array[$wg_member['sunet']]['wgs'][] = $workgroup;
-      }
+    // these are set in the settings.php file to use the Workgroups API
+    // cancel the update if we don't have them
+    // TODO: replace with use of encrypt and the variables table
+    global $ses_mais_crt_path, $ses_mais_key_path;
+    if (empty($ses_mais_crt_path) || empty($ses_mais_key_path)) {
+        watchdog('ses_custom', 'Missing cert file and/or key file for MAIS Workgroup API access');
+        return FALSE;
     }
-  }
 
-  // get research group members while we are at it
-  $groups = taxonomy_get_tree(1);
-  foreach ($groups as $group) {
-      if ($group->parents[0] > 0) {
-          $rg_members = _ses_custom_get_workgroup_members('earthsci:web-rg-'.$group->name,
-              $ses_mais_crt_path, $ses_mais_key_path);
-          if ($rg_members === FALSE) {
-              watchdog('ses_custom','Unable to connect to Workgroup Manager. Halting process.');
-              drupal_set_message('Unable to connect to Workgroup Manager. Halting process.','error');
-              return FALSE;
-          } else {
-              $ses_custom_research_affils[$group->name] = $rg_members;
-          }
-      }
-  }
-  return TRUE;
+    // set up some globals for our hooks
+    global $ses_custom_uid_array, $ses_custom_wg_members, $ses_custom_research_affils;
+    $ses_custom_uid_array = array();
+    $ses_custom_wg_members = array();
+    $ses_custom_research_affils = array();
+
+    // read in our wmd4 array matching Drupal uids to SUNet IDs
+    $result = db_query("SELECT authname,uid FROM {authmap} WHERE uid in " .
+        "(SELECT uid FROM users)");
+    foreach ($result as $row) {
+        $ses_custom_uid_array[$row->authname] = array('uid' => $row->uid,
+            'wgs' => array(),
+            'processed' => false,
+        );
+    }
+
+    // read all of our workgroups and set up the wg_members array
+    $wg_text = trim(variable_get('ses_cap_lite_workgroups', ''));
+    $wg_array = array();
+    if (!empty($wg_text)) $wg_array = explode("\n", $wg_text);
+    foreach ($wg_array as $workgroup) {
+        watchdog('ses_custom', 'Reading in workgroup: ' . $workgroup);
+        $workgroup = trim($workgroup);
+        $wg_members = _ses_custom_get_workgroup_members($workgroup,
+            $ses_mais_crt_path, $ses_mais_key_path);
+        if ($wg_members === FALSE) {
+            watchdog('ses_custom', 'Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting process.');
+            drupal_set_message('Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting Process.', 'error');
+            return FALSE;
+        } else {
+            $ses_custom_wg_members[$workgroup] = $wg_members;
+            foreach ($wg_members as $wg_member) {
+                if (!array_key_exists($wg_member['sunet'], $ses_custom_uid_array)) {
+                    $ses_custom_uid_array[$wg_member['sunet']] = array('uid' => null,
+                        'wgs' => array());
+                }
+                $ses_custom_uid_array[$wg_member['sunet']]['wgs'][] = $workgroup;
+            }
+        }
+    }
+
+    // get research group members while we are at it
+    $groups = taxonomy_get_tree(1);
+    foreach ($groups as $group) {
+        if ($group->parents[0] > 0) {
+            watchdog('ses_custom', 'Reading in workgroup: earthsci:-web-rg-' . $group->name);
+            $rg_members = _ses_custom_get_workgroup_members('earthsci:web-rg-' . $group->name,
+                $ses_mais_crt_path, $ses_mais_key_path);
+            if ($rg_members === FALSE) {
+                watchdog('ses_custom', 'Unable to connect to Workgroup Manager. Halting process.');
+                drupal_set_message('Unable to connect to Workgroup Manager. Halting process.', 'error');
+                return FALSE;
+            } else {
+                $ses_custom_research_affils[$group->name] = $rg_members;
+            }
+        }
+    }
+    return TRUE;
 }
 
 /*
  * implementation of hook_ses_cap_lite_preprocess_sunet
  *
  */
-function ses_custom_ses_cap_lite_preprocess_sunet($sunet, $group=NULL) {
-  /*
-  global $ses_custom_uid_array;
+function ses_custom_ses_cap_lite_preprocess_sunet($sunet, $group = NULL)
+{
 
-    global $ses_mais_crt_path, $ses_mais_key_path;
-    // get the workgroup members as an array
-    $wg_members = _ses_custom_get_workgroup_members($group,$ses_mais_crt_path, $ses_mais_key_path);
-    if (empty($wg_members)) {
-        watchdog('ses_custom','Empty or unable to get workgroup members for ' . $group);
-        drupal_set_message('Empty or unable to check workgroup '.$group.' for user '.$sunet);
-        return FALSE;
-    } else {
-        if (array_key_exists($sunet,$wg_members)) {
-            $wg_member = $wg_members[$sunet];
-            $uid = NULL;
-            if (array_key_exists($sunet,$ses_custom_uid_array)) {
-                $uid = $ses_custom_uid_array[$sunet]['uid'];
+    global $ses_custom_uid_array, $ses_custom_wg_members;
+
+    $uid = null;
+    $wgs = array();
+    $wg_member = array();
+    foreach ($ses_custom_wg_members as $wg_name => $wg_members) {
+            if (isset($wg_members[$sunet])) {
+                $wgs[] = $wg_name;
+                $workgroup = $wg_name;
+                $wg_member = $wg_members[$sunet];
             }
-            $uid = _ses_custom_update_single_account($sunet,$uid,$affil_data,$wg_member,$group);
+    }
+    if (array_key_exists($sunet, $ses_custom_uid_array)) {
+        $uid = $ses_custom_uid_array[$sunet]['uid'];
+    }
+
+    $processed = false;
+    if (count($wgs)>0) {
+        $ses_custom_uid_array[$sunet]['wgs'] = $wgs;
+        watchdog('ses_custom','Updating account information for :'.$sunet);
+        $uid = _ses_custom_update_single_account($sunet, $uid, $wg_member, $workgroup);
+        if (!empty($uid)) {
+            $ses_custom_uid_array[$sunet]['uid'] = $uid;
+            $processed = true;
         } else {
-            drupal_set_message('Unable to find user '.$sunet. ' in workgroup '.$group);
-            return FALSE;
+            watchdog('ses_custom', 'No user account found or created for: ' . $sunet);
         }
-    } // if workgroup has members
-    return TRUE;
-  */
+    } else {
+        watchdog('ses_custom', $sunet . ' was not found in any workgroup.');
+    }
+    return $processed;
 }
 
 /*
@@ -743,19 +681,19 @@ function ses_custom_ses_cap_lite_preprocess_sunet($sunet, $group=NULL) {
  * return the workgroup count
  *
  */
-function ses_custom_ses_cap_lite_preprocess_wg($group) {
+function ses_custom_ses_cap_lite_preprocess_wg($group)
+{
 
     global $ses_custom_uid_array, $ses_custom_wg_members;
 
-    global $ses_mais_crt_path, $ses_mais_key_path;
     // get the workgroup members as an array
-    if (!array_key_exists($group,$ses_custom_wg_members)) {
-      watchdog('ses_custom','Unable to get workgroup members for ' . $group);
-      $wg_count = FALSE;
+    if (!array_key_exists($group, $ses_custom_wg_members)) {
+        watchdog('ses_custom', 'Unable to get workgroup members for ' . $group);
+        $wg_count = FALSE;
     }
     $wg_members = $ses_custom_wg_members[$group];
     if (empty($wg_members)) {
-        watchdog('ses_custom','Empty workgroup. No members for ' . $group);
+        watchdog('ses_custom', 'Empty workgroup. No members for ' . $group);
         $wg_count = 0;
     } else {
         $wg_count = count($wg_members);
@@ -764,18 +702,18 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
             $sunet = $wg_member['sunet'];
             $uid = null;
             $processed = false;
-            if (array_key_exists($sunet,$ses_custom_uid_array)) {
+            if (array_key_exists($sunet, $ses_custom_uid_array)) {
                 $uid = $ses_custom_uid_array[$sunet]['uid'];
                 if (isset($ses_custom_uid_array[$sunet]['processed'])) {
                     $processed = $ses_custom_uid_array[$sunet]['processed'];
                 }
             }
             if (!$processed) {
-              $uid = _ses_custom_update_single_account($sunet, $uid, $wg_member, $group);
-              if (!empty($uid)) {
-                $ses_custom_uid_array[$sunet]['uid'] = $uid;
-                $ses_custom_uid_array[$sunet]['processed'] = true;
-              }
+                $uid = _ses_custom_update_single_account($sunet, $uid, $wg_member, $group);
+                if (!empty($uid)) {
+                    $ses_custom_uid_array[$sunet]['uid'] = $uid;
+                    $ses_custom_uid_array[$sunet]['processed'] = true;
+                }
             }
         } // for each member
     } // if workgroup has members
@@ -783,79 +721,93 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
 }
 
 // update or create a user account for each person in our workgroup
- function _ses_custom_update_single_account($sunet = '', $uid = null,
-                                           $wg_member = array(),$group=null) {
+function _ses_custom_update_single_account($sunet = '', $uid = null,
+                                           $wg_member = array(), $group = null)
+{
 
     if (empty($sunet)) return FALSE;
 
-    $user = null;
+    $account = null;
     // if they already have an account, load it, otherwise create account
     if (!empty($uid)) {
-        $user = user_load($uid);
+        $account = user_load($uid);
         // don't process blocked users
-        if ($user !== false && $user->status == 0) return $uid;
+        if ($account !== false && $account->status == 0) return $uid;
     } else {
         //set up the user fields
         $role_array = array(DRUPAL_AUTHENTICATED_RID => 'authenticated user');
         $rid = variable_get('wmd4_default_role');
         if (!empty($rid)) $role_array[$rid] = 'SUNet User';
         if (empty($wg_member)) {
-           $wg_member['account_name'] = $sunet;
-           $wg_member['directory_name'] = $sunet;
+            $wg_member['account_name'] = $sunet;
+            $wg_member['directory_name'] = $sunet;
         }
         $fields = array(
             'name' => $wg_member['account_name'],
-            'mail' => $sunet.'@stanford.edu',
+            'mail' => $sunet . '@stanford.edu',
             'pass' => user_password(8),
             'status' => 1,
             'init' => $sunet,
             'roles' => $role_array,
-        ); 
+        );
         //the first parameter is left blank so a new user is created
-        watchdog('user','creating user ' . $wg_member['account_name']);
-        $user = user_save('', $fields);
-        $uid = $user->uid;
+        watchdog('user', 'creating user ' . $wg_member['account_name']);
+        $account = user_save('', $fields);
+        $uid = $account->uid;
         // update tables for external users
-        db_insert('authmap')->fields(array('uid'=>$user->uid,'authname'=>$sunet,'module'=>'wmd4'))->execute();
+        db_insert('authmap')->fields(array('uid' => $account->uid, 'authname' => $sunet, 'module' => 'wmd4'))->execute();
     }  // if create user
 
     // make sure our affiliations and personnel type, and directory name are correct
     global $ses_custom_uid_array, $ses_custom_research_affils;
 
-    // build a workgroup array
-    $new_array = array(LANGUAGE_NONE => array());
+    // build workgroup and affiliations arrays
+    $wg_array = array(LANGUAGE_NONE => array());
+    $affils_array = array(LANGUAGE_NONE => array());
     if (!empty($ses_custom_uid_array[$sunet]['wgs'])) {
-      foreach ($ses_custom_uid_array[$sunet]['wgs'] as $workgroup) {
-        $new_array[LANGUAGE_NONE][] = array('value' => $workgroup);
-      }
+        foreach ($ses_custom_uid_array[$sunet]['wgs'] as $workgroup) {
+            $wg_array[LANGUAGE_NONE][] = array('value' => $workgroup);
+            $dept = _ses_custom_get_workgroup_affiliation($workgroup);
+            if ($dept !== FALSE && !in_array($dept,$affils_array)) {
+                $affils_array[LANGUAGE_NONE][] = array('value' => $dept);
+            }
+        }
+    }
+
+    // see if this is a phd student so we don't overwrite, but make sure the field gets set
+    $phd_student = '0';
+    if (isset($account->field_ses_phd_student)) {
+        $phd_student = $account->field_ses_phd_student[LANGUAGE_NONE][0]['value'];
     }
 
     // fill the research array
     $research_array = array();
     foreach ($ses_custom_research_affils as $affil_key => $affil_array) {
         if (array_key_exists($sunet, $affil_array)) {
-            $tid_array = taxonomy_get_term_by_name($affil_key,'vocabulary_1');
+            $tid_array = taxonomy_get_term_by_name($affil_key, 'vocabulary_1');
             if (!empty($tid_array)) {
                 $tid = 0;
                 foreach ($tid_array as $tid_key => $tid_obj) {
                     $tid = $tid_key;
                 }
-                if ($tid > 0) $research_array[LANGUAGE_NONE][] = array('tid'=>$tid);
+                if ($tid > 0) $research_array[LANGUAGE_NONE][] = array('tid' => $tid);
             }
         }
     }
-    $edit = array('status'=>1,
-        'field_ses_workgroup_membership'=>$new_array,
-        'field_ses_research_group'=>$research_array,
-        'field_account_directory_name'=>array('und'=>array(array('value'=>$wg_member['directory_name']))));
+    $edit = array('status' => 1,
+        'field_ses_workgroup_membership' => $wg_array,
+        'field_ses_phd_student' => array('und' => array(array('value' => $phd_student))),
+        'field_secondary_affiliations' => $affils_array,
+        'field_ses_research_group' => $research_array,
+        'field_account_directory_name' => array('und' => array(array('value' => $wg_member['directory_name']))));
 
     // only set the account name if empty
-    if (empty($user->name)) $edit['name'] = $wg_member['account_name'];
-    if (empty($user->field_cap_sunet_id)) {
-        $edit['field_cap_sunet_id'] = array(LANGUAGE_NONE=>array(array('value'=>$sunet, 'format'=>variable_get('ses_cap_lite_filter_format',filter_fallback_format()))));
-    }    
+    if (empty($account->name)) $edit['name'] = $wg_member['account_name'];
+    if (empty($account->field_cap_sunet_id)) {
+        $edit['field_cap_sunet_id'] = array(LANGUAGE_NONE => array(array('value' => $sunet, 'format' => variable_get('ses_cap_lite_filter_format', filter_fallback_format()))));
+    }
 
-    $user = user_save($user,$edit);
+    $account = user_save($account, $edit);
     return $uid;
 }
 
@@ -866,17 +818,18 @@ function ses_custom_ses_cap_lite_preprocess_wg($group) {
  * updating with profile information.
  *
  */
-function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
+function ses_custom_ses_cap_lite_entity_alter(&$entity_data)
+{
 
     global $ses_custom_uid_array;
 
     $sunet = $entity_data['sunet'];
-    if (array_key_exists($sunet,$ses_custom_uid_array)) {
+    if (array_key_exists($sunet, $ses_custom_uid_array)) {
         $uid = $ses_custom_uid_array[$sunet]['uid'];
         $user = user_load($uid);
         if (isset($user->field_ses_non_cap_profile[LANGUAGE_NONE][0]['value']) &&
-            $user->field_ses_non_cap_profile[LANGUAGE_NONE][0]['value'] == 1) 
-        {
+            $user->field_ses_non_cap_profile[LANGUAGE_NONE][0]['value'] == 1
+        ) {
             $entity_data['cancel_update'] = TRUE;
         }
     } else {
@@ -892,37 +845,40 @@ function ses_custom_ses_cap_lite_entity_alter(&$entity_data) {
  * and other things...
  *
  */
-function ses_custom_ses_cap_lite_presave_alter(&$fields,$profileObj=NULL) {
+function ses_custom_ses_cap_lite_presave_alter(&$fields, $profileObj = NULL)
+{
 
     global $ses_custom_wg_members;
 
     /* if the profile is not for faculty, we don't want any academic appointment items from CAP */
     if (!empty($fields['field_cap_academic_appointments']) && isset($profileObj)
-         && !empty($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE])) {
-      $faculty = false;
-      foreach ($profileObj->field_ses_affiliation_membership[LANGUAGE_NONE] as $affil) {
-        if (strpos($affil['value'],'faculty') !== false) {
-          $faculty = true;
-          break;
+        && !empty($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE])
+    ) {
+        $faculty = false;
+        foreach ($profileObj->field_ses_affiliation_membership[LANGUAGE_NONE] as $affil) {
+            if (strpos($affil['value'], 'faculty') !== false) {
+                $faculty = true;
+                break;
+            }
         }
-      }
-      if (!$faculty) $fields['field_cap_academic_appointments'] = array();
+        if (!$faculty) $fields['field_cap_academic_appointments'] = array();
     }
 
     /* in the title, remove 'admitted year' and change 'petroleum' to 'energy resources' */
     if (isset($fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'])) {
         $shortie = $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'];
         $ushortie = strtoupper($shortie);
-        if (strpos($shortie,', admitted') !== FALSE) {
-            $shortie = substr($shortie,0,strpos($shortie,', admitted'));
+        if (strpos($shortie, ', admitted') !== FALSE) {
+            $shortie = substr($shortie, 0, strpos($shortie, ', admitted'));
         }
-        $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'] = str_replace('Petroleum','Energy Resources',$shortie);
+        $fields['field_cap_short_title'][LANGUAGE_NONE][0]['value'] = str_replace('Petroleum', 'Energy Resources', $shortie);
 
         // see if this is a PhD student by looking at the EIPER workgroup and the CAP title and set the phd_student field
-        $fields['ses_phd_student'] = array(LANGUAGE_NONE=>array(array('value'=>"0")));
+        $fields['field_ses_phd_student'] = array(LANGUAGE_NONE => array(array('value' => "0")));
         if (array_key_exists($fields['field_cap_sunet_id'][LANGUAGE_NONE][0]['value'],
                 $ses_custom_wg_members['earthsci:eiper-students-graduate-phd']) ||
-            strpos($ushortie,'PHD') !== false || strpos($ushortie,'PH.D') !== false) {
+            strpos($ushortie, 'PHD') !== false || strpos($ushortie, 'PH.D') !== false
+        ) {
             $fields['field_ses_phd_student'][LANGUAGE_NONE][0]['value'] = "1";
         }
     }
@@ -975,168 +931,128 @@ function ses_custom_ses_cap_lite_postprocess_wg($group='', $data=array()) {
  * we want to go through our list of accounts and block any user no longer in a workgroup
  *
  */
-function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL) {
+function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
+{
     global $ses_custom_uid_array;
     $ses_custom_count = 0;
-    watchdog('ses_custom','Post processing accounts. Checking LDAP for contact info.');
+    watchdog('ses_custom', 'Post processing accounts. Checking LDAP for contact info.');
     if (isset($single_sunet)) {
         if (isset($ses_custom_uid_array[$single_sunet]['uid'])) {
-            _ses_custom_update_contact_from_ldap($single_sunet,intval($ses_custom_uid_array[$single_sunet]['uid']));
-          $ses_custom_count = 1;
+            _ses_custom_update_contact_from_ldap($single_sunet, intval($ses_custom_uid_array[$single_sunet]['uid']));
+            $ses_custom_count = 1;
         }
     } else {
-      $ses_custom_count = 0;
-      // get an array of users explicitly allowed by wmd4 module
-      $allowed_users = array();
-      $users_text = trim(variable_get('wmd4_require_users',''));
-      $temp_users = array();
-      if (!empty($users_text)) $allowed_users = explode("\n", $users_text);
-      foreach ($temp_users as $wmd_user) {
-        $allowed_users[] = trim($wmd_user);
-      }
-      // if a user account was not in any of our workgroups
-      foreach ($ses_custom_uid_array as $sunet => $subarray) {
+        $ses_custom_count = 0;
+        // get an array of users explicitly allowed by wmd4 module
+        $allowed_users = array();
+        $users_text = trim(variable_get('wmd4_require_users', ''));
+        $temp_users = array();
+        if (!empty($users_text)) $allowed_users = explode("\n", $users_text);
+        foreach ($temp_users as $wmd_user) {
+            $allowed_users[] = trim($wmd_user);
+        }
+        // if a user account was not in any of our workgroups
+        foreach ($ses_custom_uid_array as $sunet => $subarray) {
             $ses_custom_count += 1;
             if (empty($subarray['wgs'])) {
                 // check if they are explicitly allowed via wmd module
-                if (!in_array($sunet,$allowed_users)) {
+                if (!in_array($sunet, $allowed_users)) {
                     // if they are not explicitly allowed, check if they are alumni
                     $old_user = user_load(intval($subarray['uid']));
                     if ($old_user !== FALSE) {
                         if ($old_user->status !== 0 && (empty($old_user->field_alumnus[LANGUAGE_NONE][0]['value']) || $old_user->field_alumnus[LANGUAGE_NONE][0]['value'] === 0)) {
                             // at this point they have no business with an account
                             // so block them
-                            $edit = array('status'=>0);
-                            user_save($old_user,$edit);
+                            $edit = array('status' => 0);
+                            user_save($old_user, $edit);
                         }
                     }
                 }
             } else {
-               // _ses_custom_update_contact_from_ldap($sunet,intval($subarray['uid']));
+                // _ses_custom_update_contact_from_ldap($sunet,intval($subarray['uid']));
             }
-      }
+        }
     }
-    watchdog('ses_custom','Number of user accounts processed: '.$ses_custom_count);
+    watchdog('ses_custom', 'Number of user accounts processed: ' . $ses_custom_count);
     return TRUE;
 }
 
-function _ses_custom_update_contact_from_ldap($sunet=NULL,$uid = 0) {
+function _ses_custom_update_contact_from_ldap($sunet = NULL, $uid = 0)
+{
     if ($uid > 0 && isset($sunet)) {
-            // get contact info from ldap
-            $user = user_load($uid);
-            if ($user !== FALSE) {
-                $edit = array('field_cap_primary_phone' => array(),
-                              'field_cap_primary_email' => array(),
-                              'field_cap_fax' => array(),
-                              'field_cap_address' => array(),
-                              'field_cap_short_address' => array(),
-                             );
-                $ldap_result = _ses_custom_get_ldap_contact($sunet);
-                if ($ldap_result !== FALSE) {
-                    foreach ($ldap_result as $varname => $varresult) { 
-                        $output = array();
-                        if ($varname === 'field_cap_primary_phone') {
-                            foreach($varresult as $phone_num) {
-                                $output[] = array('value'=>$phone_num);
-                            }
-                        } else if ($varname === 'field_cap_short_title') {
-                            if (empty($user->field_cap_short_title[LANGUAGE_NONE][0]['value'])) {
-                                $output[] = array('value'=>$varresult);
-                            } else {
-                               break;
-                            }
-                        } else {
-                            $output[] = array('value'=>$varresult);
+        // get contact info from ldap
+        $user = user_load($uid);
+        if ($user !== FALSE) {
+            $edit = array('field_cap_primary_phone' => array(),
+                'field_cap_primary_email' => array(),
+                'field_cap_fax' => array(),
+                'field_cap_address' => array(),
+                'field_cap_short_address' => array(),
+            );
+            $ldap_result = _ses_custom_get_ldap_contact($sunet);
+            if ($ldap_result !== FALSE) {
+                foreach ($ldap_result as $varname => $varresult) {
+                    $output = array();
+                    if ($varname === 'field_cap_primary_phone') {
+                        foreach ($varresult as $phone_num) {
+                            $output[] = array('value' => $phone_num);
                         }
-                        $output = array(LANGUAGE_NONE=>$output);
-                        $edit[$varname] = $output;
+                    } else if ($varname === 'field_cap_short_title') {
+                        if (empty($user->field_cap_short_title[LANGUAGE_NONE][0]['value'])) {
+                            $output[] = array('value' => $varresult);
+                        } else {
+                            break;
+                        }
+                    } else {
+                        $output[] = array('value' => $varresult);
                     }
+                    $output = array(LANGUAGE_NONE => $output);
+                    $edit[$varname] = $output;
                 }
-                user_save($user,$edit);
             }
+            user_save($user, $edit);
+        }
     }
 }
 
-/*
-function _ses_custom_get_workgroup_affiliation($workgroup_name=NULL) {
+function _ses_custom_get_workgroup_affiliation($workgroup_name = NULL)
+{
     if (empty($workgroup_name)) return FALSE;
-    $dash = strpos($workgroup_name,'-');
+    $dash = strpos($workgroup_name, '-');
     if ($dash === FALSE) return FALSE;
 
-    $affil = substr($workgroup_name,0,$dash);
-    $ptype = substr($workgroup_name,$dash+1);
-    if (strcmp($affil,'earthsci:deans') === 0) {
-        $affil_str = "Dean's Office";
-        if ($ptype === 'office-faculty') {
-	    $ptype_str = 'Faculty - Regular';
-        } else {
-            $ptype_str = 'Administrative Staff';
-        }
-    } else {
-        switch ($affil) {
-            case 'earthsci:eess':
-                $affil_str = 'ESS';
-                break;
-            case 'earthsci:eiper':
-                $affil_str = 'E-IPER';
-                break;
-            case 'earthsci:ere':
-                $affil_str = 'ERE';
-                break;
-            case 'earthsci:esys':
-                $affil_str = 'Earth Systems';
-                break;
-            case 'earthsci:geophysics':
-                $affil_str = 'Geophysics';
-                break;
-            case 'earthsci:ges':
-                $affil_str = 'GS';
-                break;
-            default:
-                $affil_str = FALSE;
-        }
-        switch ($ptype) {
-            case 'faculty-affiliated':
-                $ptype_str = 'Faculty - Affiliated';
-                break;
-            case 'faculty-emeritus':
-                $ptype_str = 'Faculty - Emeritus';
-                break;
-            case 'faculty-regular':
-                $ptype_str = 'Faculty - Regular';
-                break;
-            case 'postdocs':
-                $ptype_str = 'Post Doctoral Scholar';
-                break;
-            case 'staff-admin':
-                $ptype_str = 'Administrative Staff';
-                break;
-            case 'staff-research':
-                $ptype_str = 'Research Staff';
-                break;
-            case 'staff-teaching':
-                $ptype_str = 'Teaching Staff';
-                break;
-            case 'students-graduate':
-                $ptype_str = 'Students - Graduate';
-                break;
-            case 'students-graduate-phd':
-                $ptype_str = 'Students - PhD';
-                break;
-            case 'students-undergraduate':
-                $ptype_str = 'Students - Undergraduate';
-                break;
-            default:
-                $ptype_str = FALSE;
-        }
-    }
-    if ($ptype_str === FALSE || $affil_str === FALSE) return FALSE;
- 
-    return array('affil'=>$affil_str,'ptype'=>$ptype_str);
-}
-*/
+    $affil = substr($workgroup_name, 0, $dash);
+    switch ($affil) {
+        case 'earthsci:deans':
+            $affil_str = "Dean's Office";
+            break;
+        case 'earthsci:eess':
+            $affil_str = 'ESS';
+            break;
+        case 'earthsci:eiper':
+            $affil_str = 'E-IPER';
+            break;
+        case 'earthsci:ere':
+            $affil_str = 'ERE';
+            break;
+        case 'earthsci:esys':
+            $affil_str = 'Earth Systems';
+            break;
+        case 'earthsci:geophysics':
+            $affil_str = 'Geophysics';
+            break;
+        case 'earthsci:ges':
+            $affil_str = 'GS';
+            break;
+        default:
+            $affil_str = FALSE;
 
-function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_file=NULL) {
+    }
+    return $affil_str;
+}
+
+function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $key_file = NULL)
+{
 
     // make sure we are passed paths to the cert files
     if (empty($cert_file) || empty($key_file)) {
@@ -1159,18 +1075,18 @@ function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_
         CURLOPT_SSL_VERIFYHOST => false,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_USERAGENT => 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)',
-        CURLOPT_URL => $url ,
-        CURLOPT_SSLCERT => $cert_file ,
+        CURLOPT_URL => $url,
+        CURLOPT_SSLCERT => $cert_file,
         CURLOPT_SSLKEY => $key_file,
     );
-    curl_setopt_array($ch , $options);
+    curl_setopt_array($ch, $options);
 
     $output = curl_exec($ch);
 
     if ($output === FALSE) {
         // if $output is false, report a curl error
         $curl_error = 'Curl Error: ' . curl_error($ch);
-        watchdog('ses_custom',$curl_error);
+        watchdog('ses_custom', $curl_error);
         return FALSE;
     } else {
         // if we have output, parse it and create an array to return
@@ -1197,13 +1113,13 @@ function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_
                 if ($key < $first_admin) {
                     $sunet = $vals[$key]['attributes']['ID'];
                     $directory_name = $vals[$key]['attributes']['NAME'];
-                    $comma = strpos($directory_name,',');
+                    $comma = strpos($directory_name, ',');
                     if ($comma === FALSE) {
                         $account_name = $directory_name;
                     } else {
-                        $account_name = substr($directory_name,$comma+2) . ' ' . substr($directory_name,0,$comma);
+                        $account_name = substr($directory_name, $comma + 2) . ' ' . substr($directory_name, 0, $comma);
                     }
-                    $members[$sunet] = array('sunet'=>$sunet, 'directory_name'=>$directory_name, 'account_name'=>$account_name);
+                    $members[$sunet] = array('sunet' => $sunet, 'directory_name' => $directory_name, 'account_name' => $account_name);
                 }
             }
         }
@@ -1213,11 +1129,11 @@ function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_
             foreach ($index['WORKGROUP'] as $key) {
                 if ($key < $first_admin && isset($vals[$key]['attributes']['NAME'])) {
                     $next_members = _ses_custom_get_workgroup_members($vals[$key]['attributes']['NAME'],
-                            $cert_file,$key_file);
+                        $cert_file, $key_file);
                     if ($next_members === FALSE) {
                         return FALSE;
                     } else {
-                        $members = array_merge($members,$next_members);
+                        $members = array_merge($members, $next_members);
                     }
                 }
             }
@@ -1230,12 +1146,13 @@ function _ses_custom_get_workgroup_members($workgroup_name,$cert_file=NULL,$key_
     return array();
 }
 
-function _ses_custom_get_ldap_contact($sunet) {
+function _ses_custom_get_ldap_contact($sunet)
+{
 
     global $ses_ldap_cred;
     if (empty($ses_ldap_cred)) {
-      watchdog('ses_custom','Missing LDAP credentials file');
-      return FALSE;
+        watchdog('ses_custom', 'Missing LDAP credentials file');
+        return FALSE;
     }
 
     $ldapError = '';
@@ -1243,13 +1160,13 @@ function _ses_custom_get_ldap_contact($sunet) {
     $result_out = array();
     $ldap = ldap_connect("ldap://ldap.stanford.edu");
     if ($ldap) {
-            $ldapok = ldap_bind($ldap);
+        $ldapok = ldap_bind($ldap);
     }
     if (!$ldapok) {
-        watchdog('ses_custom','Unable to connect to Stanford LDAP Server.');
+        watchdog('ses_custom', 'Unable to connect to Stanford LDAP Server.');
         return FALSE;
     }
-    $ldapok = ldap_set_option($ldap,LDAP_OPT_PROTOCOL_VERSION,3);
+    $ldapok = ldap_set_option($ldap, LDAP_OPT_PROTOCOL_VERSION, 3);
     //if ($ldapok) {
     //    putenv('KRB5CCNAME=FILE:'.$ses_ldap_cred);
     //    $ldapok = ldap_sasl_bind($ldap,"","","GSSAPI");
@@ -1257,16 +1174,15 @@ function _ses_custom_get_ldap_contact($sunet) {
     if ($ldapok) {
         $dn = "cn=people,dc=stanford,dc=edu";
         $ldapok = FALSE;
-        $filter = "(|(uid=".$sunet."))";
+        $filter = "(|(uid=" . $sunet . "))";
         $result = ldap_search($ldap, $dn, $filter);
-        if ($result)
-        {
-            $info = ldap_get_entries($ldap,$result);
+        if ($result) {
+            $info = ldap_get_entries($ldap, $result);
             if (isset($info) && is_array($info) & isset($info[0])) {
                 if (isset($info[0]['telephonenumber']['count'])) {
                     if ($info[0]['telephonenumber']['count'] > 0) {
                         $phoneNumbers = array();
-                        for ($i=0; $i<$info[0]['telephonenumber']['count']; $i++) {
+                        for ($i = 0; $i < $info[0]['telephonenumber']['count']; $i++) {
                             $phoneNumbers[] = $info[0]['telephonenumber'][$i];
                         }
                     }
@@ -1283,15 +1199,15 @@ function _ses_custom_get_ldap_contact($sunet) {
                 }
                 if (isset($info[0]['sugwaffiladdress1'])) {
                     $add_str = $info[0]['sugwaffiladdress1'][0];
-                    if (substr($add_str,0,11) === '1:1:office:') {
-                        $short_str = substr($add_str,11,strpos($add_str,'|')-11);
+                    if (substr($add_str, 0, 11) === '1:1:office:') {
+                        $short_str = substr($add_str, 11, strpos($add_str, '|') - 11);
                         if ($short_str !== FALSE) {
                             $result_out['field_cap_short_address'] = $short_str;
                         }
                     }
                 }
                 if (isset($info[0]['sugwaffiliation1'])) {
-                    $add_strs = explode('|',$info[0]['sugwaffiliation1'][0]);
+                    $add_strs = explode('|', $info[0]['sugwaffiliation1'][0]);
                     $short_str = '';
                     foreach ($add_strs as $add_str) {
                         if (!empty($short_str)) $short_str .= ' ';
@@ -1305,15 +1221,16 @@ function _ses_custom_get_ldap_contact($sunet) {
     }
     ldap_close($ldap);
     if (!$ldapok) {
-        $msg = 'LDAP lookup for '.$sunet.' failed.';
-        if (!empty($ldapError)) $msg .= ': '.$ldapError;
-        watchdog('ses_custom',$msg);
+        $msg = 'LDAP lookup for ' . $sunet . ' failed.';
+        if (!empty($ldapError)) $msg .= ': ' . $ldapError;
+        watchdog('ses_custom', $msg);
         $result_out = FALSE;
     }
     return $result_out;
 }
 
-function ses_custom_user_presave(&$edit, $account, $category) {
+function ses_custom_user_presave(&$edit, $account, $category)
+{
 
     if (isset($account->original->field_cap_profile_image)) {
         if (empty($edit)) $edit = array();
@@ -1323,7 +1240,8 @@ function ses_custom_user_presave(&$edit, $account, $category) {
     }
 }
 
-function _ses_custom_personnel_terms($personnel_type,$title=NULL,$tid_input = array(),$affiliation=NULL) {
+function _ses_custom_personnel_terms($personnel_type, $title = NULL, $tid_input = array(), $affiliation = NULL)
+{
 
     $tid_array = array();
     if (isset($tid_input[LANGUAGE_NONE]) && is_array($tid_input[LANGUAGE_NONE])) {
@@ -1368,29 +1286,30 @@ function _ses_custom_personnel_terms($personnel_type,$title=NULL,$tid_input = ar
         case 'Students - Graduate':
             $term_array[] = 'All Graduate Students';
             $term_array[] = 'All Students';
-            $tid_phd_key = array_keys(taxonomy_get_term_by_name('PhD Students','profile_personnel_types'));
-            if (array_key_exists(0,$tid_phd_key)) unset($tid_array[$tid_phd_key[0]]);
-            $tid_masters_key = array_keys(taxonomy_get_term_by_name('Masters Students','profile_personnel_types'));
-            if (array_key_exists(0,$tid_masters_key)) unset($tid_array[$tid_masters_key[0]]);
-            if (!empty($title) && (empty($affiliation) || strcmp($affiliation,'E-IPER') !== 0) && 
-                (strpos($title,'Ph.D.') !== FALSE || strpos($title,'PhD') !== FALSE)) {
+            $tid_phd_key = array_keys(taxonomy_get_term_by_name('PhD Students', 'profile_personnel_types'));
+            if (array_key_exists(0, $tid_phd_key)) unset($tid_array[$tid_phd_key[0]]);
+            $tid_masters_key = array_keys(taxonomy_get_term_by_name('Masters Students', 'profile_personnel_types'));
+            if (array_key_exists(0, $tid_masters_key)) unset($tid_array[$tid_masters_key[0]]);
+            if (!empty($title) && (empty($affiliation) || strcmp($affiliation, 'E-IPER') !== 0) &&
+                (strpos($title, 'Ph.D.') !== FALSE || strpos($title, 'PhD') !== FALSE)
+            ) {
                 $term_array[] = 'PhD Students';
             } else {
                 $term_array[] = 'Masters Students';
             }
             break;
         case 'Students - PhD':
-            $tid_masters_key = array_keys(taxonomy_get_term_by_name('Masters Students','profile_personnel_types'));
-            if (array_key_exists(0,$tid_masters_key)) unset($tid_array[$tid_masters_key[0]]);
+            $tid_masters_key = array_keys(taxonomy_get_term_by_name('Masters Students', 'profile_personnel_types'));
+            if (array_key_exists(0, $tid_masters_key)) unset($tid_array[$tid_masters_key[0]]);
             $term_array[] = 'All Graduate Students';
             $term_array[] = 'All Students';
             $term_array[] = 'PhD Students';
             break;
     }
     foreach ($term_array as $term) {
-        $tid_result = taxonomy_get_term_by_name($term,'profile_personnel_types');
+        $tid_result = taxonomy_get_term_by_name($term, 'profile_personnel_types');
         $tid_keys = array_keys($tid_result);
-        if (array_key_exists(0,$tid_keys)) {
+        if (array_key_exists(0, $tid_keys)) {
             $tid_array[$tid_keys[0]] = $tid_keys[0];
         }
     }
@@ -1399,105 +1318,110 @@ function _ses_custom_personnel_terms($personnel_type,$title=NULL,$tid_input = ar
     if (!empty($tid_array)) {
         $tid_out[LANGUAGE_NONE] = array();
         foreach ($tid_array as $key => $tid) {
-            $tid_out[LANGUAGE_NONE][] = array('tid'=>$key);
+            $tid_out[LANGUAGE_NONE][] = array('tid' => $key);
         }
     }
     return $tid_out;
 }
 
-function earth_keen_preprocess_views_view(&$vars) {
+function earth_keen_preprocess_views_view(&$vars)
+{
     $view = $vars['view'];
     switch ($view->name) {
         case 'people':
             drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom_people.js');
             break;
         case 'sensory_earth':
-            drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom_sensory_earth.css');
-            drupal_add_js(drupal_get_path('module','ses_custom') . '/ses_custom_sensory_earth.js');
+            drupal_add_css(drupal_get_path('module', 'ses_custom') . '/ses_custom_sensory_earth.css');
+            drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom_sensory_earth.js');
             break;
         case 'agu_cartoons_2014':
-            drupal_add_css(drupal_get_path('module','ses_custom') . '/ses_custom_agu_cartoons.css');
+            drupal_add_css(drupal_get_path('module', 'ses_custom') . '/ses_custom_agu_cartoons.css');
             break;
     }
 }
 
 // generate the add sunet user input form
-function ses_custom_add_sunet_user_form($form_state) {
-        $default_type = 'staff-admin';
-        if (!empty($_SESSION['add_sunet_user_type'])) $default_type = $_SESSION['add_sunet_user_type'];
-        $default_affil = 'deans-office';
-        if (!empty($_SESSION['add_sunet_user_affil'])) $default_affil = $_SESSION['add_sunet_user_affil'];
-        $form['user_list'] = array(
-            '#title' => t('SUNet ID of user to add'),
-            '#type' => 'textfield',
-            '#description' => t('Please enter a single SUNet ID.'),
-            '#required' => TRUE,
-        );
-        $form['personnel_type'] = array(
-            '#type' => 'select',
-            '#title' => t('Personnel Type'),
-            '#default_value' => $default_type,
-            '#options' => array(
-                'faculty-regular' => 'Faculty - Regular',
-                'faculty-emeritus' => 'Faculty - Emeritus',
-                'faculty-affiliated' => 'Faculty - Affiliated',
-                'students-graduate' => 'Students - Graduate',
-                'students-graduate-phd' => 'Students - PhD',
-                'students-undergraduate' => 'Students - Undergraduate',
-                'postdocs' => 'Post Doctoral Scholar',
-                'staff-research' => 'Research Staff',
-                'staff-admin' => 'Administrative Staff',
-                'staff-teaching' => 'Teaching Staff',
-            ),
-        );
-        $form['affiliation'] = array(
-            '#type' => 'select',
-            '#title' => 'Affiliation',
-            '#default_value' => $default_affil,
-            '#options' => array(
-                'deans-office' => "Dean's Office",
-                'esys' => 'Earth Systems',
-                'ere' => 'ERE',
-                'eess' => 'ESS',
-                'eiper' => 'E-IPER',
-                'ges' => 'GS',
-                'geophysics' => 'Geophysics',
-            ),
-        );
-        $form['submit'] = array(
-            '#type' => 'submit',
-            '#value' => t('Submit'),
-        );
-        return $form;
+function ses_custom_add_sunet_user_form($form_state)
+{
+    $default_type = 'staff-admin';
+    if (!empty($_SESSION['add_sunet_user_type'])) $default_type = $_SESSION['add_sunet_user_type'];
+    $default_affil = 'deans-office';
+    if (!empty($_SESSION['add_sunet_user_affil'])) $default_affil = $_SESSION['add_sunet_user_affil'];
+    $form['user_list'] = array(
+        '#title' => t('SUNet ID of user to add'),
+        '#type' => 'textfield',
+        '#description' => t('Please enter a single SUNet ID.'),
+        '#required' => TRUE,
+    );
+    $form['personnel_type'] = array(
+        '#type' => 'select',
+        '#title' => t('Personnel Type'),
+        '#default_value' => $default_type,
+        '#options' => array(
+            'faculty-regular' => 'Faculty - Regular',
+            'faculty-emeritus' => 'Faculty - Emeritus',
+            'faculty-affiliated' => 'Faculty - Affiliated',
+            'students-graduate' => 'Students - Graduate',
+            'students-graduate-phd' => 'Students - PhD',
+            'students-undergraduate' => 'Students - Undergraduate',
+            'postdocs' => 'Post Doctoral Scholar',
+            'staff-research' => 'Research Staff',
+            'staff-admin' => 'Administrative Staff',
+            'staff-teaching' => 'Teaching Staff',
+        ),
+    );
+    $form['affiliation'] = array(
+        '#type' => 'select',
+        '#title' => 'Affiliation',
+        '#default_value' => $default_affil,
+        '#options' => array(
+            'deans-office' => "Dean's Office",
+            'esys' => 'Earth Systems',
+            'ere' => 'ERE',
+            'eess' => 'ESS',
+            'eiper' => 'E-IPER',
+            'ges' => 'GS',
+            'geophysics' => 'Geophysics',
+        ),
+    );
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Submit'),
+    );
+    return $form;
 }
 
 // generate a clean array of SUNet IDs (or display names) of profiles to delete
-function ses_custom_add_sunet_user_form_submit($form, &$form_state) {
-        $ptype = $form_state['values']['personnel_type'];
-        $affil = $form_state['values']['affiliation'];
-        if ($affil === 'deans-office') {
-            $ptype = 'staff';
-        }
-        $workgroup = 'earthsci:'.$affil.'-'.$ptype;
-        $sunet = $form_state['values']['user_list'];
+function ses_custom_add_sunet_user_form_submit($form, &$form_state)
+{
+    $ptype = $form_state['values']['personnel_type'];
+    $affil = $form_state['values']['affiliation'];
+    if ($affil === 'deans-office') {
+        $ptype = 'staff';
+    }
+    $workgroup = 'earthsci:' . $affil . '-' . $ptype;
+    $sunet = $form_state['values']['user_list'];
 
-        if (!ses_custom_ses_cap_lite_preprocess_all($sunet)) {
-            drupal_set_message('Please try again later.','error');
-            drupal_goto($base_url . '/add_sunet_user');
-        };
+    if (!ses_custom_ses_cap_lite_preprocess_all($sunet)) {
+        drupal_set_message('Please try again later.', 'error');
+        drupal_goto($base_url . '/add_sunet_user');
+    };
 
-        global $base_url;
-        if (ses_custom_ses_cap_lite_preprocess_sunet($sunet,$workgroup)) {
-            drupal_goto($base_url.'/update_profile/'.$sunet);
-        } else {
-            drupal_goto($base_url.'/add_sunet_user');
-        }
+    global $base_url;
+    if (ses_custom_ses_cap_lite_preprocess_sunet($sunet, $workgroup)) {
+        drupal_goto($base_url . '/update_profile/' . $sunet);
+    } else {
+        drupal_goto($base_url . '/add_sunet_user');
+    }
 }
 
-function ses_custom_action_info() {
-    $operations=array(
+
+function ses_custom_action_info()
+{
+    $operations = array(
         '_ses_custom_convert_to_alumni' => array(
-            'type' => 'user',            
+            'type' => 'user',
             'label' => t("Convert selected users' profiles to type Alumni"),
             'configurable' => FALSE,
             'triggers' => array('any'),
@@ -1512,17 +1436,20 @@ function ses_custom_action_info() {
     return $operations;
 }
 
-function _ses_custom_convert_to_alumni(&$entity, $context = array()) {
+function _ses_custom_convert_to_alumni(&$entity, $context = array())
+{
     $entity->field_alumnus['und'][0]['value'] = 1;
     user_save($entity);
 }
 
-function _ses_custom_convert_to_non_cap(&$entity, $context = array()) {
+function _ses_custom_convert_to_non_cap(&$entity, $context = array())
+{
     $entity->field_ses_non_cap_profile['und'][0]['value'] = 1;
     user_save($entity);
 }
 
-function ses_custom_ses_cap_lite_field_array_alter(&$cap_fields) {
+function ses_custom_ses_cap_lite_field_array_alter(&$cap_fields)
+{
     $cap_fields['titles'] = array(
         'field_type' => 'text_long',
         'build_callback' => '_ses_custom_academic_appointments_list'
@@ -1535,29 +1462,31 @@ function ses_custom_ses_cap_lite_field_array_alter(&$cap_fields) {
  *
  * The field is constructed using <ul> and <li> tags
  */
-function _ses_custom_academic_appointments_list($capData = array(),$cap_field) {
+function _ses_custom_academic_appointments_list($capData = array(), $cap_field)
+{
     if (empty($cap_field) || !isset($capData[$cap_field])) return array();
     $capDataItem = $capData[$cap_field];
     if (empty($capDataItem) || !is_array($capDataItem)) {
         $output = array();
     } else {
         $dupes = array();
-        $output = '<div class="'.$cap_field.'-div"><ul class="'.$cap_field.'-ul">';
-        foreach($capDataItem as $lineitem) {
+        $output = '<div class="' . $cap_field . '-div"><ul class="' . $cap_field . '-ul">';
+        foreach ($capDataItem as $lineitem) {
             $appt = $lineitem['label']['text'];
-            if (!in_array($appt,$dupes)) {
+            if (!in_array($appt, $dupes)) {
                 $dupes[] = $appt;
-                $output .= '<li class="'.$cap_field.'-li">'.$lineitem['label']['html'].'</li>';
+                $output .= '<li class="' . $cap_field . '-li">' . $lineitem['label']['html'] . '</li>';
             }
         }
         $output .= '</ul></div>';
-        $output = array(LANGUAGE_NONE=>array(array('value'=>$output,
-            'format'=>variable_get('ses_cap_lite_filter_format',filter_fallback_format()))));
+        $output = array(LANGUAGE_NONE => array(array('value' => $output,
+            'format' => variable_get('ses_cap_lite_filter_format', filter_fallback_format()))));
     }
     return $output;
 }
 
-function ses_custom_query_alter(QueryAlterableInterface $query) {
+function ses_custom_query_alter(QueryAlterableInterface $query)
+{
     if ($query->hasTag('views')) {
         $viewGroup = $query->getMetaData('view');
         $view =& $viewGroup;
@@ -1577,8 +1506,9 @@ function ses_custom_views_pre_render(&$view) {
 }
 */
 
-function _ses_custom_cartoon_permalink($nid) {
-        
+function _ses_custom_cartoon_permalink($nid)
+{
+
     $view = views_get_view('agu_cartoons_2014');
     $view->set_display('main-page');
     $view->set_items_per_page(0);
@@ -1588,38 +1518,41 @@ function _ses_custom_cartoon_permalink($nid) {
     if (!empty($view->result)) {
         foreach ($view->result as $key => $node) {
             if ($node->nid == $nid) {
-                $params['query'] = array('page'=>$key);
+                $params['query'] = array('page' => $key);
                 break;
             }
         }
     }
-    drupal_goto('agu-cartoons-2014',$params);
+    drupal_goto('agu-cartoons-2014', $params);
 }
 
-function _ses_custom_get_html_substr($output, $search_str) {
+function _ses_custom_get_html_substr($output, $search_str)
+{
     $return_str = FALSE;
-    $first = strpos($output,$search_str);
+    $first = strpos($output, $search_str);
     if ($first !== FALSE) {
         $first += strlen($search_str);
-        $second = strpos($output,'"',$first);
+        $second = strpos($output, '"', $first);
         if ($second !== FALSE) {
-            $return_str = substr($output,$first,$second-$first);
+            $return_str = substr($output, $first, $second - $first);
         }
     }
     return $return_str;
 }
 
-function ses_custom_views_post_render(&$view, &$output, &$cache) {
+function ses_custom_views_post_render(&$view, &$output, &$cache)
+{
     if ($view->name == 'agu_cartoons_2014') {
         $search_str = 'agu-cartoons-permalink/';
-        $nid = _ses_custom_get_html_substr($output,$search_str);
+        $nid = _ses_custom_get_html_substr($output, $search_str);
         if ($nid !== FALSE) {
-            $url = url($search_str . $nid,array('absolute'=>TRUE));
-            $needle = _ses_custom_get_html_substr($output,'data-url="');
+            $url = url($search_str . $nid, array('absolute' => TRUE));
+            $needle = _ses_custom_get_html_substr($output, 'data-url="');
             if ($needle !== FALSE) {
-                $output = str_replace($needle,$url,$output);
+                $output = str_replace($needle, $url, $output);
             }
         }
     }
 }
+
 ?>
