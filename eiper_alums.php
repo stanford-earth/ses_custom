@@ -35,7 +35,7 @@ for ($i = 2165; $i<2167; $i++) {
         $phd = "0";
         if ($i == 2165) $phd = "1";
         $edit = array('field_ses_workgroup_membership' => array('und' => array(array('value' => $wg))));
-        $edit['field_ses_phd_student'] = array('und' => array(array('value' => $phd)));
+        //$edit['field_ses_phd_student'] = array('und' => array(array('value' => $phd)));
         user_save($account, $edit);
         $count += 1;
     }
@@ -51,7 +51,7 @@ foreach ($result as $row) {
     $account = user_load($row->uid);
     $wg_array = array();
     $edit = array('field_ses_workgroup_membership' => array('und' => array(array('value' => $wg))));
-    $edit['field_ses_phd_student'] = array('und' => array(array('value' => "0")));
+    //$edit['field_ses_phd_student'] = array('und' => array(array('value' => "0")));
     user_save($account, $edit);
     $count += 1;
 }
