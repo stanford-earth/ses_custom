@@ -594,7 +594,8 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
     $wg_text = trim(variable_get('ses_cap_lite_workgroups', ''));
     $wg_array = array();
     if (!empty($wg_text)) $wg_array = explode("\n", $wg_text);
-    foreach ($wg_array as $workgroup) {
+    foreach ($wg_array as $workgroup_in) {
+        $workgroup = trim($workgroup_in);
         watchdog('ses_custom', 'Reading in workgroup: ' . $workgroup);
         $workgroup = trim($workgroup);
         $wg_members = _ses_custom_get_workgroup_members($workgroup,
