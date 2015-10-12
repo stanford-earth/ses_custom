@@ -409,12 +409,20 @@ function _ses_custom_build_wg_selection($department, $personnel_type)
             else if ($dept == 'eiper' || $dept == 'esys') {
                 switch ($ptype) {
                     case 'faculty':
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-regulars'] =
+                            'earthsci:' . $dept . '-faculty-regulars';
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-affiliated'] =
+                            'earthsci:' . $dept . '-faculty-affiliated';
+                        break;
                     case 'regular':
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-regulars'] =
+                            'earthsci:' . $dept . '-faculty-regulars';
+                        break;
                     case 'emeritus':
+                        break;
                     case 'affiliated':
-                        if ($ptype == 'affiliated' || count($dept_array) == 1) {
-                            $return_array['wgs']['earthsci:' . $dept . '-faculty'] = 'earthsci:' . $dept . '-faculty';
-                        }
+                        $return_array['wgs']['earthsci:' . $dept . '-faculty-affiliated'] =
+                            'earthsci:' . $dept . '-faculty-affiliated';
                         break;
                     case 'students':
                     case 'graduate':
