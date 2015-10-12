@@ -184,7 +184,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             $form['tmp_associate_type']['#options']['staff'] = 'All Staff';
             $form['tmp_associate_type']['#options']['admin'] = 'Administrative Staff';
             $form['tmp_associate_type']['#options']['research'] = 'Research Staff';
-            if ($form['#id'] == 'views-exposed-form-people-ess-all') {
+            if ($form['#id'] == 'views-exposed-form-people-ess-all' || $form['#id'] == 'views-exposed-form-people-page') {
                 $form['tmp_associate_type']['#options']['teaching'] = 'Teaching Staff';
             }
             $new_info = array('filter-tmp-associate-type' => array('label' => 'Type', 'value' => 'tmp_associate_type'));
