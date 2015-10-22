@@ -159,8 +159,8 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
     // build some fake view filter forms that we will later match to workgroups
     if ($form_id == 'views_exposed_form') {
         if (in_array($form['#id'], array('views-exposed-form-people-ess-all', 'views-exposed-form-people-ere-all',
-            'views-exposed-form-people-gs-page', 'views-exposed-form-people-gp-page',
-            'views-exposed-form-people-page'))) {
+            'views-exposed-form-people-gs-page', 'views-exposed-form-people-gp-page', 'views-exposed-form-people-page',
+            'views-exposed-form-manage-profiles-page'))) {
             $form['tmp_associate_type'] = array(
                 '#type' => 'select',
                 '#options' => array('all' => '- All -'),
@@ -184,7 +184,8 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             $form['tmp_associate_type']['#options']['staff'] = 'All Staff';
             $form['tmp_associate_type']['#options']['admin'] = 'Administrative Staff';
             $form['tmp_associate_type']['#options']['research'] = 'Research Staff';
-            if ($form['#id'] == 'views-exposed-form-people-ess-all' || $form['#id'] == 'views-exposed-form-people-page') {
+            if ($form['#id'] == 'views-exposed-form-people-ess-all' || $form['#id'] == 'views-exposed-form-people-page' ||
+              $form['#id'] == 'views-exposed-form-manage-profiles-page') {
                 $form['tmp_associate_type']['#options']['teaching'] = 'Teaching Staff';
             }
             $new_info = array('filter-tmp-associate-type' => array('label' => 'Type', 'value' => 'tmp_associate_type'));
@@ -291,6 +292,9 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
                 _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name', 'disable');
                 //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
                 _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership', 'disable');
+                _ses_custom_hide_or_disable_form_field($form, 'field_ses_phd_student', 'disable');
+                _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations', 'disable');
+                _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student', 'disable');
                 //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
                 _ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
                 //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
@@ -325,6 +329,9 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
             //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_phd_student');
+            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations');
+            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student');
             _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_non_cap_profile');
             _ses_custom_hide_or_disable_form_field($form, 'field_alumnus');
@@ -527,7 +534,8 @@ function _ses_custom_wg_validate($form, &$form_state)
         $selections = _ses_custom_build_wg_selection('ges', $form_state['values']['tmp_associate_type']);
     } else if ($form['#id'] == 'views-exposed-form-people-gp-page') {
         $selections = _ses_custom_build_wg_selection('geophysics', $form_state['values']['tmp_associate_type']);
-    } else if ($form['#id'] == 'views-exposed-form-people-page') {
+    } else if ($form['#id'] == 'views-exposed-form-people-page' ||
+        $form['#id'] == 'views-exposed-form-manage-profiles-page') {
         if (!empty($form_state['values']['tmp_affiliation'])) {
             $selections = _ses_custom_build_wg_selection($form_state['values']['tmp_affiliation'],
                 $form_state['values']['tmp_associate_type']);
@@ -783,6 +791,7 @@ function _ses_custom_update_single_account($sunet = '', $uid = null,
     }
 
     // see if this is a phd student so we don't overwrite, but make sure the field gets set
+    // we will reset this when the cap record is processed
     $phd_student = '0';
     if (isset($account->field_ses_phd_student)) {
         $phd_student = $account->field_ses_phd_student[LANGUAGE_NONE][0]['value'];
@@ -1446,14 +1455,17 @@ function ses_custom_action_info()
 
 function _ses_custom_convert_to_alumni(&$entity, $context = array())
 {
-    $entity->field_alumnus['und'][0]['value'] = 1;
-    user_save($entity);
+    $edit = array('field_alumnus' => array('und' => array(array('value' => 1))),
+                    'field_alumni_affiliations' => $entity->field_ses_workgroup_membership,
+                    'field_alumni_phd_student' => $entity->field_ses_phd_student,
+    );
+    user_save($entity,$edit);
 }
 
 function _ses_custom_convert_to_non_cap(&$entity, $context = array())
 {
-    $entity->field_ses_non_cap_profile['und'][0]['value'] = 1;
-    user_save($entity);
+    $edit = array('field_ses_non_cap_profile' => array('und' => array(array('value' => 1))));
+    user_save($entity,$edit);
 }
 
 function ses_custom_ses_cap_lite_field_array_alter(&$cap_fields)
