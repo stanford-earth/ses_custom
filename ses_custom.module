@@ -94,7 +94,7 @@ function _ses_custom_mailchimp_csv()
 function ses_custom_user_login(&$edit, $account)
 {
     // if this is an alumni user account, log it out
-    if (!empty($account->field_alumnus) && $account->field_alumnus[LANGUAGE_NONE][0]['value'] == 1) {
+    if (!empty($account->field_alumni_affiliations) && empty($account->field_workgroup_membership[LANGUAGE_NONE])) {
         user_logout();
     }
 }
@@ -224,7 +224,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
 
         $form['account']['mail']['#type'] = 'hidden';
         $hide_cap_fields = TRUE;
-        if (isset($form['#user']) && isset($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) && intval($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) == 1) {
+        if (isset($form['#user']) &&  !empty($form['#user']->field_alumni_affiliations[LANGUAGE_NONE])) {
             $hide_cap_fields = FALSE;
         }
         drupal_add_js(array('hideCapFields' => $hide_cap_fields), 'setting');
@@ -300,7 +300,7 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
                 //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
             }
             _ses_custom_hide_or_disable_form_field($form, 'field_title', 'disable');
-            if (!isset($form['#user']) || !isset($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) || intval($form['#user']->field_alumnus[LANGUAGE_NONE][0]['value']) != 1) {
+            if (!isset($form['#user']) || empty($form['#user']->field_alumni_affiliations[LANGUAGE_NONE])) {
                 _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
                 _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
             }
@@ -334,7 +334,6 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student');
             _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_non_cap_profile');
-            _ses_custom_hide_or_disable_form_field($form, 'field_alumnus');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
             drupal_add_js(array('allowAdminTab' => FALSE), 'setting');
@@ -793,7 +792,7 @@ function _ses_custom_update_single_account($sunet = '', $uid = null,
     // see if this is a phd student so we don't overwrite, but make sure the field gets set
     // we will reset this when the cap record is processed
     $phd_student = '0';
-    if (isset($account->field_ses_phd_student)) {
+    if (!empty($wg_array[LANGUAGE_NONE]) && isset($account->field_ses_phd_student)) {
         $phd_student = $account->field_ses_phd_student[LANGUAGE_NONE][0]['value'];
     }
 
@@ -977,7 +976,7 @@ function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
                     // if they are not explicitly allowed, check if they are alumni
                     $old_user = user_load(intval($subarray['uid']));
                     if ($old_user !== FALSE) {
-                        if ($old_user->status !== 0 && (empty($old_user->field_alumnus[LANGUAGE_NONE][0]['value']) || $old_user->field_alumnus[LANGUAGE_NONE][0]['value'] === 0)) {
+                        if ($old_user->status !== 0 && empty($old_user->field_alumni_affiliations)) {
                             // at this point they have no business with an account
                             // so block them
                             $edit = array('status' => 0);
@@ -1455,7 +1454,7 @@ function ses_custom_action_info()
 
 function _ses_custom_convert_to_alumni(&$entity, $context = array())
 {
-    $edit = array('field_alumnus' => array('und' => array(array('value' => 1))),
+    $edit = array(
                     'field_alumni_affiliations' => $entity->field_ses_workgroup_membership,
                     'field_alumni_phd_student' => $entity->field_ses_phd_student,
     );
