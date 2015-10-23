@@ -975,11 +975,19 @@ function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
                 if (!in_array($sunet, $allowed_users)) {
                     // if they are not explicitly allowed, check if they are alumni
                     $old_user = user_load(intval($subarray['uid']));
-                    if ($old_user !== FALSE) {
-                        if ($old_user->status !== 0 && empty($old_user->field_alumni_affiliations)) {
+                    if ($old_user !== FALSE && $old_user->status !== 0) {
+                        $edit = array();
+                        if (!empty($old_user->field_alumni_affiliations)) {
+                            // they are listed somewhere as alumni, so keep
+                            // their account active but remove workgroup info
+                            $edit['field_ses_workgroup_membership'] = array();
+                            $edit['field_ses_phd_student'] = array();
+                        } else {
                             // at this point they have no business with an account
                             // so block them
-                            $edit = array('status' => 0);
+                            $edit['status'] = 0;
+                        }
+                        if (!empty($edit)) {
                             user_save($old_user, $edit);
                         }
                     }
