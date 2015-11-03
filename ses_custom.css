@@ -1,5 +1,5 @@
 .hidden-profile-section {
-    display: none;
+    display: none !important;
 }
 
 #edit-submitted-classnote-additional-degree-info {

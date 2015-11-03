@@ -15,6 +15,8 @@
 
         if (Drupal.settings.disableCapFields) {
             $('.group-account-main li:first').hide();
+        } else {
+            $('.ses-account-profile-tab').removeClass('hidden-profile-section');
         }
 
         $('#edit-field-cap-profile-image-und-0-remove-button').hide();
