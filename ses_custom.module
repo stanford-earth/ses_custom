@@ -101,11 +101,11 @@ function ses_custom_user_login(&$edit, $account)
 
 function _ses_custom_hide_or_disable_form_field(&$form, $field_name, $todo = 'hide')
 {
-    if ($todo === 'hide') {
-        $form[$field_name]['#type'] = 'hidden';
-    } elseif ($todo === 'disable') {
+    //if ($todo === 'hide') {
+    //    $form[$field_name]['#type'] = 'hidden';
+    //} elseif ($todo === 'disable') {
         $form[$field_name]['#disabled'] = TRUE;
-    }
+    //}
 }
 
 function _ses_custom_profile_override_pre_render($element)
@@ -160,7 +160,8 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
     if ($form_id == 'views_exposed_form') {
         if (in_array($form['#id'], array('views-exposed-form-people-ess-all', 'views-exposed-form-people-ere-all',
             'views-exposed-form-people-gs-page', 'views-exposed-form-people-gp-page', 'views-exposed-form-people-page',
-            'views-exposed-form-manage-profiles-page'))) {
+            'views-exposed-form-manage-profiles-page', 'views-exposed-form-emergency-contacts-page',
+            'views-exposed-form-directory-page'))) {
             $form['tmp_associate_type'] = array(
                 '#type' => 'select',
                 '#options' => array('all' => '- All -'),
@@ -185,11 +186,13 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             $form['tmp_associate_type']['#options']['admin'] = 'Administrative Staff';
             $form['tmp_associate_type']['#options']['research'] = 'Research Staff';
             if ($form['#id'] == 'views-exposed-form-people-ess-all' || $form['#id'] == 'views-exposed-form-people-page' ||
-              $form['#id'] == 'views-exposed-form-manage-profiles-page') {
+              $form['#id'] == 'views-exposed-form-manage-profiles-page' || 'views-exposed-form-emergency-contacts-page' ||
+              $form['#id'] == 'views-exposed-form-directory-page') {
                 $form['tmp_associate_type']['#options']['teaching'] = 'Teaching Staff';
             }
             $new_info = array('filter-tmp-associate-type' => array('label' => 'Type', 'value' => 'tmp_associate_type'));
-            if ($form['#id'] == 'views-exposed-form-people-page') {
+            if ($form['#id'] == 'views-exposed-form-people-page' || $form['#id'] == 'views-exposed-form-emergency-contacts-page' ||
+                $form['#id'] == 'views-exposed-form-manage-profiles-page' || $form['#id'] == 'views-exposed-form-directory-page') {
                 $form['tmp_affiliation'] = array(
                     '#type' => 'select',
                     '#options' => array('all' => '- All -'),
@@ -222,35 +225,28 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
 
         // hide or disable form fields based on the user role
 
-        $form['account']['mail']['#type'] = 'hidden';
-        $hide_cap_fields = TRUE;
+        $form['account']['mail']['#disabled'] = true; //['#type'] = 'hidden';
+        $disable_cap_fields = true;
         if (isset($form['#user']) &&  !empty($form['#user']->field_alumni_affiliations[LANGUAGE_NONE])) {
-            $hide_cap_fields = FALSE;
+            $disable_cap_fields = false;
         }
-        drupal_add_js(array('hideCapFields' => $hide_cap_fields), 'setting');
-        if ($hide_cap_fields) {
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_primary_phone');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_primary_email');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_fax');
+        drupal_add_js(array('disableCapFields' => $disable_cap_fields), 'setting');
+        if ($disable_cap_fields) {
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_address');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_short_address');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_image', 'disable');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research_short');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research_terse');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_short_title');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_academic_appointments');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_admin_appointments');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_label');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_name');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_title');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_email');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_alternate_phone');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_academic_appointments');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_admin_appointments');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_bio');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_international');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_courses_taught');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_current_stanford_role');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_document_links');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_education');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_fax');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_grad_fellowship');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_honors_and_awards');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_internet_links');
@@ -260,85 +256,63 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_personal_interests');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_postdoc_advisees');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_presentations');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_primary_phone');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_primary_email');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_professional_interests');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_professional_orgs');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_id');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_image', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_link');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_projects');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_publications');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research_short');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_research_terse');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_service_work');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_short_address');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_short_title');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_stanford_advisors');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_link');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_sunet_id');
             _ses_custom_hide_or_disable_form_field($form, 'field_cap_work_experience');
+            _ses_custom_hide_or_disable_form_field($form, 'field_cap_sunet_id');
         }
 
-        // only allow the non-cap bio field for those with the field checked
+        // only allow the non-cap bio field for those with the "allow non-cap profile" field checked
         if (!isset($form['#user']) || !isset($form['#user']->field_ses_non_cap_profile[LANGUAGE_NONE][0]['value']) || intval($form['#user']->field_ses_non_cap_profile[LANGUAGE_NONE][0]['value']) != 1) {
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_non_cap_bio');
         }
 
-        // hide advisees_degrees and advisee_publications from all except regular faculty
-        // note: this code is disabled for now; these fields are disabled for all except superuser below
-//        if (!isset($form['#user']) || !isset($form['#user']->field_personnel_type[LANGUAGE_NONE][0]['value']) || $form['#user']->field_personnel_type[LANGUAGE_NONE][0]['value'] !== 'Faculty - Regular') {
-        if (empty($user) || $user->uid !== 1) {
-            _ses_custom_hide_or_disable_form_field($form, 'field_cv_advisees_degrees');
-            _ses_custom_hide_or_disable_form_field($form, 'field_cv_advisee_publications');
-        }
-
+        _ses_custom_hide_or_disable_form_field($form, 'field_title', 'disable');
         // field settings for superuser or webeditor
-        if ($user->uid == 1 || in_array('webeditor', $user->roles)) {
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_id', 'disable');
+        $allow_admin_tab = false;
+        $allow_webeditor_tab = false;
+        if ($user->uid == 1) {
+            $allow_admin_tab = true;
+        } else {
+            _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_ses_phd_student', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_secondary_affiliations','disable');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_research_group', 'disable');
-            if ($user->uid != 1) {
-                _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name', 'disable');
-                //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups','disable');
-                _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership', 'disable');
-                _ses_custom_hide_or_disable_form_field($form, 'field_ses_phd_student', 'disable');
-                _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations', 'disable');
-                _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student', 'disable');
-                //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations','disable');
-                _ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations','disable');
-                //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type','disable');
-            }
-            _ses_custom_hide_or_disable_form_field($form, 'field_title', 'disable');
+            _ses_custom_hide_or_disable_form_field($form, 'field_earth_system_leadership_w', 'disable');
+        }
+        if ($user->uid == 1 || in_array('webeditor', $user->roles)) {
             if (!isset($form['#user']) || empty($form['#user']->field_alumni_affiliations[LANGUAGE_NONE])) {
                 _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
                 _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
             }
-
-            drupal_add_js(array('allowDepartmentTab' => TRUE), 'setting');
-            if ($user->uid == 1) {
-                //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup','disable');
-                //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type','disable');
-                _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record', 'disable');
-                drupal_add_js(array('allowAdminTab' => TRUE), 'setting');
-            } else {
-                //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
-                //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
-                _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record');
-                drupal_add_js(array('allowAdminTab' => FALSE), 'setting');
-            }
+            $allow_webeditor_tab = true;
         } else {
-            _ses_custom_hide_or_disable_form_field($form, 'field_cap_profile_id');
-            _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name');
-            _ses_custom_hide_or_disable_form_field($form, 'field_ses_research_group');
-            //_ses_custom_hide_or_disable_form_field($form,'field_primary_affiliations');
-            _ses_custom_hide_or_disable_form_field($form,'field_secondary_affiliations');
-            _ses_custom_hide_or_disable_form_field($form, 'field_title');
-            //_ses_custom_hide_or_disable_form_field($form,'field_ses_associate_type');
-            //_ses_custom_hide_or_disable_form_field($form,'field_import_workgroup');
-            //_ses_custom_hide_or_disable_form_field($form,'field_personnel_type');
-            //_ses_custom_hide_or_disable_form_field($form,'field_ses_affiliation_workgroups');
-            _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership');
-            _ses_custom_hide_or_disable_form_field($form, 'field_ses_phd_student');
-            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations');
-            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student');
-            _ses_custom_hide_or_disable_form_field($form, 'field_stanford_profile_record');
+            _ses_custom_hide_or_disable_form_field($form, 'field_hide_from_directory');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_non_cap_profile');
+            _ses_custom_hide_or_disable_form_field($form, 'field_research_area');
+            _ses_custom_hide_or_disable_form_field($form, 'field_challenge_area');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
-            drupal_add_js(array('allowAdminTab' => FALSE), 'setting');
-            drupal_add_js(array('allowDepartmentTab' => FALSE), 'setting');
         }
+        drupal_add_js(array('allowAdminTab' => $allow_admin_tab), 'setting');
+        drupal_add_js(array('allowWebEditorTab' => $allow_webeditor_tab), 'setting');
 
         // set up some information and links at the top of the form
         if (isset($form['#user']->field_cap_profile_link[LANGUAGE_NONE][0]['value'])) {
@@ -534,7 +508,9 @@ function _ses_custom_wg_validate($form, &$form_state)
     } else if ($form['#id'] == 'views-exposed-form-people-gp-page') {
         $selections = _ses_custom_build_wg_selection('geophysics', $form_state['values']['tmp_associate_type']);
     } else if ($form['#id'] == 'views-exposed-form-people-page' ||
-        $form['#id'] == 'views-exposed-form-manage-profiles-page') {
+        $form['#id'] == 'views-exposed-form-manage-profiles-page' ||
+        $form['#id'] == 'views-exposed-form-emergency-contacts-page' ||
+        $form['#id'] == 'views-exposed-form-directory-page') {
         if (!empty($form_state['values']['tmp_affiliation'])) {
             $selections = _ses_custom_build_wg_selection($form_state['values']['tmp_affiliation'],
                 $form_state['values']['tmp_associate_type']);
@@ -871,7 +847,7 @@ function ses_custom_ses_cap_lite_presave_alter(&$fields, $profileObj = NULL)
         && !empty($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE])
     ) {
         $faculty = false;
-        foreach ($profileObj->field_ses_affiliation_membership[LANGUAGE_NONE] as $affil) {
+        foreach ($profileObj->field_ses_workgroups_membership[LANGUAGE_NONE] as $affil) {
             if (strpos($affil['value'], 'faculty') !== false) {
                 $faculty = true;
                 break;

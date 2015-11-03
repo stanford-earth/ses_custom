@@ -9,12 +9,12 @@
         if (!Drupal.settings.allowAdminTab) {
             $('.group-account-main li:last').prev().hide();
         }
-        if (!Drupal.settings.allowDepartmentTab) {
+        if (!Drupal.settings.allowWebEditorTab) {
             $('.group-account-main li:last').hide();
         }
 
-        if (!Drupal.settings.hideCapFields) {
-            $('.profile-cap-fields').removeClass('hidden-profile-section');
+        if (Drupal.settings.disableCapFields) {
+            $('.group-account-main li:first').hide();
         }
 
         $('#edit-field-cap-profile-image-und-0-remove-button').hide();
