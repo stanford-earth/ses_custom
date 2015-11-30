@@ -80,6 +80,9 @@
             }
         });
 
+        // hide default (blank) profile image for the list-with-image user display when an override image is present
+        $(".user-profile.view-mode-list .field-name-field-ses-image-override-").nextAll().hide();
+
     });
 
 

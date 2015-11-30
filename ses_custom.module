@@ -42,12 +42,6 @@ function ses_custom_menu()
 
 function _ses_custom_show_workgroup_members($workgroup)
 {
-    $account = user_load(683);
-    print '<pre>';
-    print_r($account);
-    print '</pre>';
-    return;
-
     global $ses_mais_crt_path, $ses_mais_key_path;
     // get the workgroup members as an array
     $wg_members = _ses_custom_get_workgroup_members($workgroup, $ses_mais_crt_path, $ses_mais_key_path);
@@ -1557,5 +1551,3 @@ function ses_custom_views_post_render(&$view, &$output, &$cache)
         }
     }
 }
-
-?>
