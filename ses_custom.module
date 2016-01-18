@@ -323,13 +323,13 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
     } // user_profile_form
     else if ($form_id == 'webform_client_form_48281') {
         drupal_add_css(drupal_get_path('module', 'ses_custom') . '/ses_custom.css');
-    } else if (substr_compare($form_id, "_node_form", -10, 10) === 0 && isset($form['field_stanford_subsite_sub_tags'])) {
+    } else if (substr_compare($form_id, "_node_form", -10, 10) === 0 && isset($form['field_stanford_subsite_sub_tags'])
+      && $form_id != 'stanford_subsite_node_form') {
         $form['field_stanford_subsite_sub_tags']['#disabled'] = true;
         if (isset($_GET['field_stanford_subsite_sub_tags']) && is_numeric($_GET['field_stanford_subsite_sub_tags'])) {
             $term = taxonomy_term_load($_GET['field_stanford_subsite_sub_tags']);
             if ($term !== false) {
-                $term_name = $term->name;
-                $key = array_search($term_name,$form['field_stanford_subsite_subsite']['und']['#options']);
+                $key = array_search($term->name, $form['field_stanford_subsite_subsite']['und']['#options']);
                 if ($key !== false) {
                     $form['field_stanford_subsite_subsite']['und']['#default_value'] = strval($key);
                     $form['field_stanford_subsite_subsite']['#disabled'] = true;
