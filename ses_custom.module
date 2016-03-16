@@ -958,7 +958,7 @@ function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
                 if (!in_array($sunet, $allowed_users)) {
                     // if they are not explicitly allowed, check if they are alumni
                     $old_user = user_load(intval($subarray['uid']));
-                    if ($old_user !== FALSE && $old_user->status !== 0) {
+                    if ($old_user !== FALSE && intval($old_user->status) !== 0) {
                         $edit = array();
                         if (!empty($old_user->field_alumni_affiliations)) {
                             // they are listed somewhere as alumni, so keep
@@ -968,6 +968,7 @@ function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
                         } else {
                             // at this point they have no business with an account
                             // so block them
+                            watchdog('ses_custom','blocking former affiliate: '.$old_user->uid.' '.$old_user->name);
                             $edit['status'] = 0;
                         }
                         if (!empty($edit)) {
@@ -1060,7 +1061,6 @@ function _ses_custom_get_workgroup_affiliation($workgroup_name = NULL)
 
 function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $key_file = NULL)
 {
-
     // make sure we are passed paths to the cert files
     if (empty($cert_file) || empty($key_file)) {
         return FALSE;
@@ -1243,6 +1243,13 @@ function ses_custom_user_presave(&$edit, $account, $category)
         if (empty($edit)) $edit = array();
         if (!isset($edit['field_cap_profile_image'])) {
             $edit['field_cap_profile_image'] = $account->original->field_cap_profile_image;
+        }
+    }
+    if (isset($edit['field_ses_image_override_'][LANGUAGE_NONE][0])) {
+        if (empty($edit['field_ses_image_override_'][LANGUAGE_NONE][0]['alt'])) {
+            $alt_str = 'Override profile image';
+            if (!empty($edit['name'])) $alt_str .= ' for ' . $edit['name'];
+            $edit['field_ses_image_override_'][LANGUAGE_NONE][0]['alt'] = $alt_str;
         }
     }
 }
@@ -1565,10 +1572,9 @@ function ses_custom_views_post_render(&$view, &$output, &$cache)
     }
 }
 
-/*
 function ses_custom_node_view($node, $viewmode, $langcode)
 {
-  if ($node->nid == 49243) {
+  if ($node->nid == 49361) {
       $node->content['#attached']['js'][] = array
       (
 	'type' => 'external',
@@ -1580,4 +1586,3 @@ function ses_custom_node_view($node, $viewmode, $langcode)
       );
   }
 }
-*/
