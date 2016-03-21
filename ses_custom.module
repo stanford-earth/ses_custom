@@ -1502,6 +1502,8 @@ function _ses_custom_academic_appointments_list($capData = array(), $cap_field)
     return $output;
 }
 
+/*
+// function commented out by ksharp on 3/18/2016 to restore duplicate titles
 function ses_custom_query_alter(QueryAlterableInterface $query)
 {
     if ($query->hasTag('views')) {
@@ -1512,6 +1514,7 @@ function ses_custom_query_alter(QueryAlterableInterface $query)
         }
     }
 }
+*/
 
 /*
 function ses_custom_views_pre_render(&$view) {
