@@ -282,28 +282,31 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
         if ($user->uid == 1) {
             $allow_admin_tab = true;
         } else {
-            _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name', 'disable');
+            //_ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name', 'disable');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_workgroup_membership', 'disable');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_phd_student', 'disable');
-            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations', 'disable');
-            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student', 'disable');
+            // _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations', 'disable');
+            // _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student', 'disable');
             _ses_custom_hide_or_disable_form_field($form, 'field_secondary_affiliations','disable');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_research_group', 'disable');
             _ses_custom_hide_or_disable_form_field($form, 'field_earth_system_leadership_w', 'disable');
         }
-        if ($user->uid == 1 || in_array('webeditor', $user->roles)) {
+        if ($user->uid == 1 || in_array('webeditor', $user->roles) || in_array('webmaster', $user->roles)) {
             if (!isset($form['#user']) || empty($form['#user']->field_alumni_affiliations[LANGUAGE_NONE])) {
                 _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
                 _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
             }
             $allow_webeditor_tab = true;
         } else {
+            _ses_custom_hide_or_disable_form_field($form, 'field_account_directory_name');
             _ses_custom_hide_or_disable_form_field($form, 'field_hide_from_directory');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_non_cap_profile');
             _ses_custom_hide_or_disable_form_field($form, 'field_research_area');
             _ses_custom_hide_or_disable_form_field($form, 'field_challenge_area');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_program');
             _ses_custom_hide_or_disable_form_field($form, 'field_ses_alumni_year');
+            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_affiliations');
+            _ses_custom_hide_or_disable_form_field($form, 'field_alumni_phd_student');
         }
         drupal_add_js(array('allowAdminTab' => $allow_admin_tab), 'setting');
         drupal_add_js(array('allowWebEditorTab' => $allow_webeditor_tab), 'setting');
