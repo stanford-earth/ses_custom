@@ -1519,15 +1519,60 @@ function ses_custom_query_alter(QueryAlterableInterface $query)
 }
 */
 
-/*
-function ses_custom_views_pre_render(&$view) {
-    global $user;
-    if (isset($user->uid) && $user->uid == 1 && isset($view->query->groupby) && isset($view->name) && ($view->name === 'events' || $view->name === 'event_calendar')) {
-        $xyz = print_r($view->query->groupby,TRUE);
-        watchdog('debug','event view groupby <pre>'.$xyz.'</pre>');
+
+function ses_custom_views_pre_render(&$view)
+{
+    // before we render the events view, weed out any duplicates
+    // duplicates arise because the stanford event content type contains events from many different
+    // events feeds, and some events are bookmarked from other feeds.
+    if (isset($view->name) && isset($view->result) && is_array($view->result) &&
+        ($view->name === 'events' || $view->name === 'event_calendar') && count($view->result) > 1) {
+
+        // the feeds module keeps a table of imported events, each with a unique GUID. When the event is bookmarked in
+        // another feed it is recorded in the table with the same GUID. First set an array of guids for nodes in the
+        // view display and another to record duplicates
+        $guids = array();
+        $duplicates = array();
+
+        // get the list of nids from $view->result and query the feeds_item table for them, saving the GUID and
+        // import timestamp for each event
+        $event_nodes_list = '(';
+        foreach ($view->result as $key => $value) {
+            $event_nodes_list .= $value->nid . ', ';
+        }
+        $event_nodes_list .= '0);';
+        $result = db_query("SELECT entity_id, guid, imported FROM {feeds_item} WHERE entity_id in " . $event_nodes_list);
+        foreach ($result as $row) {
+            // look at the GUID for each event. If it is already in the $guids array, then it is a duplicate
+            // and we want to get rid of the older of the we are looking at vs the one already in the array
+            if (array_key_exists($row->guid,$guids)) {
+                if (intval($row->imported) < intval($guids[$row->guid]['imported'])) {
+                    // the new one was imported earlier, so we will treat it as the duplicate and store its
+                    // nid in the duplicates array
+                    $duplicates[] = $row->entity_id;
+                } else {
+                    // the new one was imported later, so we will put the nid of the stored event in the
+                    // duplicates array and save the entity_id and imported timestamp to the guids array
+                    $duplicates[] = $guids[$row->guid]['entity_id'];
+                    $guids[$row->guid]['entity_id'] = $row->entity_id;
+                    $guids[$row->guid]['imported'] = $row->imported;
+                }
+            } else {
+                // the current event is not in the guids array, so is not a duplicate (yet) and can be stored
+                $guids[$row->guid] = array('entity_id' => $row->entity_id, 'imported' => $row->imported);
+            }
+        }
+
+        // go back through the list of nids in the view and remove any in our duplicates list
+        foreach ($view->result as $key => $value) {
+            if (in_array($value->nid,$duplicates)) {
+                unset($view->result[$key]);
+            }
+        }
+        // reindex the results array now free of duplicates
+        $view->result = array_values($view->result);
     }
 }
-*/
 
 function _ses_custom_cartoon_permalink($nid)
 {
@@ -1576,6 +1621,7 @@ function ses_custom_views_post_render(&$view, &$output, &$cache)
             }
         }
     }
+
 }
 
 function ses_custom_node_view($node, $viewmode, $langcode)
