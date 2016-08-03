@@ -205,6 +205,23 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             $form['#info'] = array_merge($new_info, $form['#info']);
             if (!isset($form['#validate'])) $form['#validate'] = array();
             $form['#validate'] = array_merge(array('_ses_custom_wg_validate'), $form['#validate']);
+        } else if ($form['#id'] == 'views-exposed-form-people-alumni-ms') {
+            $form['eiper_ms_degree'] = array(
+                '#type' => 'select',
+                '#options' => array('- All -'),
+                '#size' => null,
+                '#default_value' => 0,
+            );
+            $result = db_query("SELECT DISTINCT field_ses_alumni_program_value FROM " .
+                "{field_data_field_ses_alumni_program} WHERE field_ses_alumni_program_value NOT LIKE '%phd%' " .
+                "ORDER BY field_ses_alumni_program_value");
+            foreach ($result as $row) {
+                $form['eiper_ms_degree']['#options'][] = $row->field_ses_alumni_program_value;
+            }
+            $new_info = array('filter-eiper-ms-degree' => array('label' => 'Degree', 'value' => 'eiper_ms_degree'));
+            $form['#info'] = array_merge($new_info, $form['#info']);
+            if (!isset($form['#validate'])) $form['#validate'] = array();
+            $form['#validate'] = array_merge(array('_ses_custom_eiper_ms_validate'), $form['#validate']);
         }
     } else if ($form_id == 'user_profile_form') {
 
@@ -528,6 +545,16 @@ function _ses_custom_wg_validate($form, &$form_state)
     }
     $form_state['values']['field_ses_workgroup_membership_value'] = $selections['wgs'];
     $form_state['values']['field_ses_phd_student_value'] = $selections['phds'];
+}
+
+function _ses_custom_eiper_ms_validate($form, &$form_state) {
+    $selection = '';
+    if ($form['#id'] == 'views-exposed-form-people-alumni-ms') {
+        if (isset($form_state['values']['eiper_ms_degree']) && $form_state['values']['eiper_ms_degree'] > 0  ) {
+            $selection = $form['eiper_ms_degree']['#options'][$form_state['values']['eiper_ms_degree']];
+        }
+    }
+    $form_state['values']['field_ses_alumni_program_value'] = $selection;
 }
 
 /*
