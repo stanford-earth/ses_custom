@@ -205,18 +205,29 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
             $form['#info'] = array_merge($new_info, $form['#info']);
             if (!isset($form['#validate'])) $form['#validate'] = array();
             $form['#validate'] = array_merge(array('_ses_custom_wg_validate'), $form['#validate']);
-        } else if ($form['#id'] == 'views-exposed-form-people-alumni-ms') {
+        } else if ($form['#id'] == 'views-exposed-form-people-alumni-ms' ||
+                   $form['#id'] == 'views-exposed-form-people-joint-ms') {
             $form['eiper_ms_degree'] = array(
                 '#type' => 'select',
                 '#options' => array('- All -'),
                 '#size' => null,
                 '#default_value' => 0,
             );
-            $result = db_query("SELECT DISTINCT field_ses_alumni_program_value FROM " .
-                "{field_data_field_ses_alumni_program} WHERE field_ses_alumni_program_value NOT LIKE '%phd%' " .
-                "ORDER BY field_ses_alumni_program_value");
-            foreach ($result as $row) {
-                $form['eiper_ms_degree']['#options'][] = $row->field_ses_alumni_program_value;
+            if ($form['#id'] == 'views-exposed-form-people-alumni-ms') {
+                $result = db_query("SELECT DISTINCT field_ses_alumni_program_value FROM " .
+                    "{field_data_field_ses_alumni_program} WHERE field_ses_alumni_program_value NOT LIKE '%phd%' " .
+                    "ORDER BY field_ses_alumni_program_value");
+                foreach ($result as $row) {
+                    $form['eiper_ms_degree']['#options'][] = $row->field_ses_alumni_program_value;
+                }
+            } else if ($form['#id'] == 'views-exposed-form-people-joint-ms') {
+                $result = db_query("SELECT DISTINCT t.field_ses_title_override_value FROM " .
+                    "field_data_field_ses_title_override t, field_data_field_ses_workgroup_membership w " .
+                    "WHERE  t.entity_id = w.entity_id AND w.field_ses_workgroup_membership_value = " .
+                    "'earthsci:eiper-students-graduate' ORDER BY t.field_ses_title_override_value");
+                foreach ($result as $row) {
+                    $form['eiper_ms_degree']['#options'][] = $row->field_ses_title_override_value;
+                }
             }
             $new_info = array('filter-eiper-ms-degree' => array('label' => 'Degree', 'value' => 'eiper_ms_degree'));
             $form['#info'] = array_merge($new_info, $form['#info']);
@@ -549,12 +560,18 @@ function _ses_custom_wg_validate($form, &$form_state)
 
 function _ses_custom_eiper_ms_validate($form, &$form_state) {
     $selection = '';
-    if ($form['#id'] == 'views-exposed-form-people-alumni-ms') {
-        if (isset($form_state['values']['eiper_ms_degree']) && $form_state['values']['eiper_ms_degree'] > 0  ) {
-            $selection = $form['eiper_ms_degree']['#options'][$form_state['values']['eiper_ms_degree']];
-        }
+    if (isset($form_state['values']['eiper_ms_degree']) && $form_state['values']['eiper_ms_degree'] > 0  ) {
+        $selection = $form['eiper_ms_degree']['#options'][$form_state['values']['eiper_ms_degree']];
     }
-    $form_state['values']['field_ses_alumni_program_value'] = $selection;
+    $ms_field_name = '';
+    if ($form['#id'] == 'views-exposed-form-people-alumni-ms') {
+        $ms_field_name = 'field_ses_alumni_program_value';
+    } else if ($form['#id'] == 'views-exposed-form-people-joint-ms') {
+        $ms_field_name = 'field_ses_title_override_value';
+    }
+    if (!empty($ms_field_name)) {
+        $form_state['values'][$ms_field_name] = $selection;
+    }
 }
 
 /*
