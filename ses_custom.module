@@ -776,11 +776,13 @@ function _ses_custom_update_single_account($sunet = '', $uid = null,
     // if they already have an account, load it, otherwise create account
     if (!empty($uid)) {
         $account = user_load($uid);
-        if (!empty($group)) {
-            watchdog('ses_custom', 'Blocked user found in workgroup: '.$group.'. Resetting to active: ' . $account->name . ' ' . $account->mail);
-        } else {
-            // don't process blocked users
-            if ($account !== false && $account->status == 0) return $uid;
+        // don't process blocked users unless found in a workgroup
+        if ($account !== false && $account->status == 0) {
+            if (!empty($group)) {
+                watchdog('ses_custom', 'Blocked user found in workgroup: '.$group.'. Resetting to active: ' . $account->name . ' ' . $account->mail);
+            } else {
+                return $uid;
+            }
         }
     } else {
         //set up the user fields
