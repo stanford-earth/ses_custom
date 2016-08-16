@@ -354,6 +354,9 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
     } // user_profile_form
     else if ($form_id == 'webform_client_form_48281') {
         drupal_add_css(drupal_get_path('module', 'ses_custom') . '/ses_custom.css');
+    } else if ($form_id == 'earth_news_node_form') {
+        if (empty($form['#submit'])) $form['#submit'] = array();
+        $form['#submit'][] = '_ses_custom_strip_source_title';
     } else if (substr_compare($form_id, "_node_form", -10, 10) === 0 && isset($form['field_stanford_subsite_sub_tags'])
       && $form_id != 'stanford_subsite_node_form') {
         $form['field_stanford_subsite_sub_tags']['#disabled'] = true;
@@ -367,6 +370,13 @@ function ses_custom_form_alter(&$form, &$form_state, $form_id)
                 }
             }
         }
+    }
+}
+
+function _ses_custom_strip_source_title($form, &$form_state) {
+    if (!empty($form_state['values']['field_se_news_source'][LANGUAGE_NONE][0]['title'])) {
+        $form_state['values']['field_se_news_source'][LANGUAGE_NONE][0]['title'] =
+            strip_tags($form_state['values']['field_se_news_source'][LANGUAGE_NONE][0]['title']);
     }
 }
 
