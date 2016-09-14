@@ -1135,7 +1135,7 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
     $mais_host = 'workgroupsvc';
     if ($ses_mais_uat) $mais_host .= '-uat';
     $url = "https://" . $mais_host . ".stanford.edu/v1/workgroups/" . $workgroup_name;
-
+sleep(2);
     // create a curl session to get the workgroup data
     $ch = curl_init();
 
@@ -1156,7 +1156,7 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
     if ($output === FALSE) {
         // if $output is false, report a curl error
         $curl_error = 'Curl Error: ' . curl_error($ch);
-        watchdog('ses_custom', $curl_error);
+        watchdog('ses_custom', $curl_error.' ' . $url);
         return FALSE;
     } else {
         // if we have output, parse it and create an array to return
