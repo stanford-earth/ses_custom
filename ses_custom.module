@@ -1135,7 +1135,6 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
     $mais_host = 'workgroupsvc';
     if ($ses_mais_uat) $mais_host .= '-uat';
     $url = "https://" . $mais_host . ".stanford.edu/v1/workgroups/" . $workgroup_name;
-
     // create a curl session to get the workgroup data
     $ch = curl_init();
 
@@ -1219,7 +1218,7 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
     return array();
 }
 
-function _ses_custom_get_ldap_contact($sunet)
+function _ses_custom_get_ldap_contact($sunet, $search_by = 'uid')
 {
 
     global $ses_ldap_cred;
@@ -1247,7 +1246,7 @@ function _ses_custom_get_ldap_contact($sunet)
     if ($ldapok) {
         $dn = "cn=people,dc=stanford,dc=edu";
         $ldapok = FALSE;
-        $filter = "(|(uid=" . $sunet . "))";
+        $filter = "(|(" . $search_by . "=" . $sunet . "))";
         $result = ldap_search($ldap, $dn, $filter);
         if ($result) {
             $info = ldap_get_entries($ldap, $result);
@@ -1700,4 +1699,33 @@ function ses_custom_node_view($node, $viewmode, $langcode)
 	'data' => drupal_get_path('module','ses_custom') . '/ses_custom_25live.js',
       );
   }
+}
+
+// implementation of hook_stanford_r25_contact_alter because user phone numbers are not included in 25Live
+// and so we want to get them from ldap and include them in the contact info
+function ses_custom_stanford_r25_contact_alter(&$contact) {
+    static $contact_array = array();
+    $start = strpos($contact,'mailto:');
+    if ($start !== false) {
+        $start += 7;
+        $end = strpos($contact,'"',$start);
+        if ($end !== false) {
+            $email = substr($contact,$start,$end-$start);
+            if ($email !== false) {
+                $phone = '';
+                if (empty($contact_array[$email])) {
+                    $ldap_info = _ses_custom_get_ldap_contact($email, 'mail');
+                    if (!empty($ldap_info['field_cap_primary_phone'][0])) {
+                        $contact_array[$email] = $ldap_info['field_cap_primary_phone'][0];
+                        $phone = $contact_array[$email];
+                    }
+                } else {
+                    $phone = $contact_array[$email];
+                }
+                if (!empty($phone)) {
+                    $contact .= "<span>Phone: " . $phone . "</span>";
+                }
+            }
+        }
+    }
 }
