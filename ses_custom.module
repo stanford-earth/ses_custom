@@ -1221,11 +1221,11 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
 function _ses_custom_get_ldap_contact($sunet, $search_by = 'uid')
 {
 
-    global $ses_ldap_cred;
-    if (empty($ses_ldap_cred)) {
-        watchdog('ses_custom', 'Missing LDAP credentials file');
-        return FALSE;
-    }
+    //global $ses_ldap_cred;
+    //if (empty($ses_ldap_cred)) {
+    //    watchdog('ses_custom', 'Missing LDAP credentials file');
+    //    return FALSE;
+    //}
 
     $ldapError = '';
     $ldapok = FALSE;
@@ -1704,27 +1704,29 @@ function ses_custom_node_view($node, $viewmode, $langcode)
 // implementation of hook_stanford_r25_contact_alter because user phone numbers are not included in 25Live
 // and so we want to get them from ldap and include them in the contact info
 function ses_custom_stanford_r25_contact_alter(&$contact) {
+    // only lookup an email once for a page
     static $contact_array = array();
+
+    // parse the email address from the $contact var passed by stanford_r25
     $start = strpos($contact,'mailto:');
     if ($start !== false) {
         $start += 7;
         $end = strpos($contact,'"',$start);
         if ($end !== false) {
             $email = substr($contact,$start,$end-$start);
+            // if we have an email address
             if ($email !== false) {
-                $phone = '';
+                // check if we already found it. if not do an ldap lookup
                 if (empty($contact_array[$email])) {
                     $ldap_info = _ses_custom_get_ldap_contact($email, 'mail');
-                    if (!empty($ldap_info['field_cap_primary_phone'][0])) {
+                    if (empty($ldap_info['field_cap_primary_phone'][0])) {
+                        $contact_array[$email] = 'n/a';
+                    } else {
                         $contact_array[$email] = $ldap_info['field_cap_primary_phone'][0];
-                        $phone = $contact_array[$email];
                     }
-                } else {
-                    $phone = $contact_array[$email];
                 }
-                if (!empty($phone)) {
-                    $contact .= "<span>Phone: " . $phone . "</span>";
-                }
+                // return the found email or h/a
+                $contact .= "&nbsp;<span>Phone: " . $contact_array[$email] . "</span>";
             }
         }
     }
