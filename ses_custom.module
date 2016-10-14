@@ -1124,6 +1124,7 @@ function _ses_custom_get_workgroup_affiliation($workgroup_name = NULL)
 
 function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $key_file = NULL)
 {
+/*
     // make sure we are passed paths to the cert files
     if (empty($cert_file) || empty($key_file)) {
         return FALSE;
@@ -1160,6 +1161,7 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
                     'verify_peer' => false,
                     'local_cert' => $cert_file,
                     'local_pk' => $key_file,
+//'ciphers' => '!SSLv2:!SSLv3',	
                 ),
                 'http' => array(
                     'follow_location' => false,
@@ -1167,6 +1169,15 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
                 ),
             )
         )
+    );
+*/
+    $url = 'https://earth.stanford.edu/fetchwg.php?wg='.$workgroup_name;
+    $headers = array(
+        'Content_Type' => 'text/xml; charset=UTF-8',
+        'User-Agent' => 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)',
+    );
+    $options = array(
+        'headers' => $headers,
     );
     $output = drupal_http_request($url, $options);
     $members = array();
