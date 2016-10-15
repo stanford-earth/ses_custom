@@ -1171,6 +1171,7 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
         )
     );
 */
+/*
     $url = 'https://earth.stanford.edu/fetchwg.php?wg='.$workgroup_name;
     $headers = array(
         'Content_Type' => 'text/xml; charset=UTF-8',
@@ -1187,12 +1188,55 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
         watchdog('ses_custom', $http_error . $url);
         return false;
     } else if (!empty($output->data)) {
+*/
+    global $ses_custom_errors;
+
+    // make sure we are passed paths to the cert files
+    if (empty($cert_file) || empty($key_file)) {
+        $ses_custom_errors[] = 'No workgroup api certificate file paths included in call to _ses_custom_get_workgroup_members for '.$workgroup_name;
+        return FALSE;
+    }
+
+    // create the URL to access the workgroup, from variables set in settings.php
+    // $ses_mais_uat is true if we are working against the MAIS test system
+    global $ses_mais_uat;
+    $mais_host = 'workgroupsvc';
+    if ($ses_mais_uat) $mais_host .= '-uat';
+    $url = "https://" . $mais_host . ".stanford.edu/v1/workgroups/" . $workgroup_name;
+    // create a curl session to get the workgroup data
+    $ch = curl_init();
+
+    $options = array(
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_USERAGENT => 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)',
+        CURLOPT_URL => $url,
+        CURLOPT_SSLCERT => $cert_file,
+        CURLOPT_SSLKEY => $key_file,
+        CURLOPT_FORBID_REUSE => true, 
+        CURLOPT_FRESH_CONNECT => true, 
+    );
+    curl_setopt_array($ch, $options);
+    $members = array();
+    $output = curl_exec($ch);
+    if ($output === FALSE) {
+        // if $output is false, report a curl error
+        $curl_error = 'Curl Error: ' . curl_error($ch);
+        watchdog('ses_custom', $curl_error.' ' . $url);
+        $ses_custom_errors[] = 'Curl error in call to _ses_custom_get_workgroup_members for ' . $url . ': ' . $curl_error;
+        curl_close($ch);
+        return FALSE;
+    } else {
+        curl_close($ch);
         // if we have output, parse it and create an array to return
         // parse the xml
         $p = xml_parser_create();
         $vals = array();
         $index = array();
-        xml_parse_into_struct($p, $output->data, $vals, $index);
+        xml_parse_into_struct($p, $output, $vals, $index);
+        //xml_parse_into_struct($p, $output->data, $vals, $index);
         xml_parser_free($p);
 
         // for each person in the workgroup, get their SUNet ID, directory name, and display name
