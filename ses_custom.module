@@ -1,5 +1,7 @@
 <?php
 
+$ses_custom_errors = array();
+
 function ses_custom_init() {
     drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom_people.js');
 }
@@ -42,23 +44,31 @@ function ses_custom_menu()
 
 function _ses_custom_show_workgroup_members($workgroup)
 {
-    global $ses_mais_crt_path, $ses_mais_key_path;
+    global $ses_mais_crt_path, $ses_mais_key_path, $ses_custom_errors;
+    $ses_custom_errors = array();
     // get the workgroup members as an array
     $wg_members = _ses_custom_get_workgroup_members($workgroup, $ses_mais_crt_path, $ses_mais_key_path);
     print 'workgroup: ' . $workgroup . '<pre>';
     print_r($wg_members);
     print '</pre>';
+    if (!empty($ses_custom_errors)) {
+        print 'errors: <pre>';
+        print_r($ses_custom_errors);
+        print '</pre>';
+    }
 }
 
 function _ses_custom_mailchimp_csv()
 {
-    global $ses_mais_crt_path, $ses_mais_key_path;
+    global $ses_mais_crt_path, $ses_mais_key_path, $ses_custom_errors;
+    $ses_custom_errors = array();
     // get the workgroup members as an array
     $wg_members = _ses_custom_get_workgroup_members('earthsci:drupal-accounts', $ses_mais_crt_path, $ses_mais_key_path);
     $output = '';
     if (empty($wg_members)) {
         watchdog('ses_custom', 'Empty or unable to get workgroup members for ' . $group);
         drupal_set_message('Empty or unable to check access workgroup ' . $group . ' for MailChimp csv');
+        _ses_custom_mail_error_report($ses_custom_errors,'mailchimp_csv');
         return '';
     } else {
         header('Content-Type: application/excel');
@@ -623,9 +633,12 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
     // these are set in the settings.php file to use the Workgroups API
     // cancel the update if we don't have them
     // TODO: replace with use of encrypt and the variables table
-    global $ses_mais_crt_path, $ses_mais_key_path;
+    global $ses_mais_crt_path, $ses_mais_key_path, $ses_custom_errors;
+    $ses_custom_errors = array();
     if (empty($ses_mais_crt_path) || empty($ses_mais_key_path)) {
         watchdog('ses_custom', 'Missing cert file and/or key file for MAIS Workgroup API access');
+        $ses_custom_errors[] = 'Missing Workgroup API cert file and/or key file in call to ses_custom_ses_cap_lite_preprocess_all';
+        _ses_custom_mail_error_report($ses_custom_errors, 'ses_cap_lite_preprocess_all');
         return FALSE;
     }
 
@@ -658,6 +671,8 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
         if ($wg_members === FALSE) {
             watchdog('ses_custom', 'Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting process.');
             drupal_set_message('Unable to connect to Workgroup Manager for ' . $workgroup . '. Halting Process.', 'error');
+            $ses_custom_errors[] = 'Fatal connection error to Workgroup API in ses_custom_ses_cap_lite_preprocess_all. Halting import.';
+            _ses_custom_mail_error_report($ses_custom_errors,'ses_cap_lite_preprocess_all');
             return FALSE;
         } else {
             $ses_custom_wg_members[$workgroup] = $wg_members;
@@ -681,6 +696,8 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
             if ($rg_members === FALSE) {
                 watchdog('ses_custom', 'Unable to connect to Workgroup Manager. Halting process.');
                 drupal_set_message('Unable to connect to Workgroup Manager. Halting process.', 'error');
+                $ses_custom_errors[] = 'Fatal connection error to Workgroup API in ses_custom_ses_cap_lite_preprocess_all. Halting import.';
+                _ses_custom_mail_error_report($ses_custom_errors,'ses_cap_lite_preprocess_all');
                 return FALSE;
             } else {
                 $ses_custom_research_affils[$group->name] = $rg_members;
@@ -995,7 +1012,7 @@ function ses_custom_ses_cap_lite_postprocess_wg($group='', $data=array()) {
  */
 function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
 {
-    global $ses_custom_uid_array;
+    global $ses_custom_uid_array,$ses_custom_errors;
     $ses_custom_count = 0;
     watchdog('ses_custom', 'Post processing accounts. Checking LDAP for contact info.');
     if (isset($single_sunet)) {
@@ -1045,6 +1062,10 @@ function ses_custom_ses_cap_lite_postprocess_all($single_sunet = NULL)
         }
     }
     watchdog('ses_custom', 'Number of user accounts processed: ' . $ses_custom_count);
+    if (!empty($ses_custom_errors)) {
+        $ses_custom_errors[] = 'LDAP Errors from ses_cap_lite import postprocess.';
+        _ses_custom_mail_error_report($ses_custom_errors,'ses_cap_lite_postprocess_all');
+    }
     return TRUE;
 }
 
@@ -1124,6 +1145,7 @@ function _ses_custom_get_workgroup_affiliation($workgroup_name = NULL)
 
 function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $key_file = NULL)
 {
+
     global $ses_custom_errors;
 
     // make sure we are passed paths to the cert files
@@ -1221,12 +1243,7 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
 
 function _ses_custom_get_ldap_contact($sunet, $search_by = 'uid')
 {
-
-    //global $ses_ldap_cred;
-    //if (empty($ses_ldap_cred)) {
-    //    watchdog('ses_custom', 'Missing LDAP credentials file');
-    //    return FALSE;
-    //}
+    global $ses_custom_errors;
 
     $ldapError = '';
     $ldapok = FALSE;
@@ -1237,13 +1254,10 @@ function _ses_custom_get_ldap_contact($sunet, $search_by = 'uid')
     }
     if (!$ldapok) {
         watchdog('ses_custom', 'Unable to connect to Stanford LDAP Server.');
+        $ses_custom_errors[] = 'LDAP credentials missing in call to _ses_custom_get_ldap_contact for ' . $sunet;
         return FALSE;
     }
     $ldapok = ldap_set_option($ldap, LDAP_OPT_PROTOCOL_VERSION, 3);
-    //if ($ldapok) {
-    //    putenv('KRB5CCNAME=FILE:'.$ses_ldap_cred);
-    //    $ldapok = ldap_sasl_bind($ldap,"","","GSSAPI");
-    //}
     if ($ldapok) {
         $dn = "cn=people,dc=stanford,dc=edu";
         $ldapok = FALSE;
@@ -1297,6 +1311,7 @@ function _ses_custom_get_ldap_contact($sunet, $search_by = 'uid')
         $msg = 'LDAP lookup for ' . $sunet . ' failed.';
         if (!empty($ldapError)) $msg .= ': ' . $ldapError;
         watchdog('ses_custom', $msg);
+        $ses_custom_errors[] = $msg;
         $result_out = FALSE;
     }
     return $result_out;
@@ -1731,4 +1746,23 @@ function ses_custom_stanford_r25_contact_alter(&$contact) {
             }
         }
     }
+}
+
+/**
+ * Implementation of hook_mail for emailing errors to admin
+ */
+function ses_custom_mail($key, &$message, $params)
+{
+    if (substr_compare($key, 'ses_custom',0,10) === 0) {
+        $message['subject'] = $params['subject'];
+        $message['body'] = $params['body'];
+    }
+}
+
+function _ses_custom_mail_error_report($errors, $source) {
+    // send an email about the booking if mail list is set
+    $mail_list = 'ksharp@stanford.edu';
+    $subject = 'Drupal Errors encountered with ' . $source;
+    $params = array('body' => $errors, 'subject' => $subject);
+    drupal_mail('ses_custom', 'ses_custom_'.$source, $mail_list, language_default(), $params);
 }
