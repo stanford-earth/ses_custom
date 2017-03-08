@@ -39,7 +39,36 @@ function ses_custom_menu()
         'access arguments' => array('administer users'),
         'type' => MENU_CALLBACK,
     );
+  $items['update_workgroup_members/%/%'] = array(
+    'title' => 'Update Workgroup Members',
+    'page callback' => '_ses_custom_update_workgroup_members',
+    'page arguments' => array(1,2),
+    'access arguments' => array('administer users'),
+    'type' => MENU_CALLBACK,
+  );
     return $items;
+}
+
+function _ses_custom_update_workgroup_members($set,$workgroup) {
+  if ($workgroup == 'all') {
+    if ($set == 'regular') {
+      _ses_custom_store_regular_workgroups();
+    } else if ($set == 'research') {
+      _ses_custom_store_research_workgroups();
+    } else {
+      die ('Unknown workgroup set.');
+    }
+  } else {
+    if ($set == 'regular' || $set == 'research') {
+      _ses_custom_store_workgroup_members($set, array($workgroup));
+    } else {
+      die ('Unkown workgroup set.');
+    }
+  }
+  $wg_array = variable_get('se3_workgroup_members', array());
+  print 'workgroups:<br />';
+  print '<pre>'; print_r($wg_array); print '</pre><br />';
+  print 'done<br />';
 }
 
 function _ses_custom_show_workgroup_members($workgroup)
@@ -659,6 +688,21 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
     }
 
     // read all of our workgroups and set up the wg_members array
+  $se3_wg_members = variable_get('se3_workgroup_members',array());
+  foreach ($se3_wg_members['regular'] as $workgroup => $wg_members) {
+    if (!empty($wg_members)) {
+      $ses_custom_wg_members[$workgroup] = $wg_members;
+      foreach ($wg_members as $wg_member) {
+        if (!array_key_exists($wg_member['sunet'], $ses_custom_uid_array)) {
+          $ses_custom_uid_array[$wg_member['sunet']] = array('uid' => null,
+            'wgs' => array());
+        }
+        $ses_custom_uid_array[$wg_member['sunet']]['wgs'][] = $workgroup;
+      }
+    }
+  }
+
+/*
     $wg_text = trim(variable_get('ses_cap_lite_workgroups', ''));
     $wg_array = array();
     if (!empty($wg_text)) $wg_array = explode("\n", $wg_text);
@@ -685,9 +729,17 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
             }
         }
     }
-
+*/
     // get research group members while we are at it
-    $groups = taxonomy_get_tree(1);
+  foreach ($se3_wg_members['research'] as $workgroup => $rg_members) {
+    if (!empty($rg_members)) {
+      $rgroupname = substr($workgroup,16);
+      $ses_custom_research_affils[$rgroupname] = $rg_members;
+    }
+  }
+
+  /*
+  $groups = taxonomy_get_tree(1);
     foreach ($groups as $group) {
         if ($group->parents[0] > 0) {
             watchdog('ses_custom', 'Reading in workgroup: earthsci:web-rg-' . $group->name);
@@ -704,6 +756,7 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
             }
         }
     }
+  */
     return TRUE;
 }
 
@@ -1141,6 +1194,51 @@ function _ses_custom_get_workgroup_affiliation($workgroup_name = NULL)
 
     }
     return $affil_str;
+}
+
+function _ses_custom_store_regular_workgroups() {
+  // read all of our workgroups and set up the wg_members array
+  $wg_text = trim(variable_get('ses_cap_lite_workgroups', ''));
+  $wg_array = array();
+  if (!empty($wg_text)) $wg_array = explode("\n", $wg_text);
+  _ses_custom_store_workgroup_members('regular', $wg_array, true);
+}
+
+function _ses_custom_store_research_workgroups() {
+  // get research group list
+  $groups = taxonomy_get_tree(1);
+  $wg_array = array();
+  if (!empty($groups)) {
+    foreach ($groups as $group) {
+      if ($group->parents[0] > 0) {
+        $wg_array[] = 'earthsci:web-rg-' . $group->name;
+      }
+    }
+  }
+  _ses_custom_store_workgroup_members('research', $wg_array, true);
+}
+
+function _ses_custom_store_workgroup_members($wg_set = '', $wg_array = array(), $reset_set = false) {
+  if (is_array($wg_array) && !empty($wg_set)) {
+    $wg_updates = array();
+    foreach ($wg_array as $wg) {
+      $wg_trim = trim($wg);
+      $wg_updates[$wg_trim] = _ses_custom_get_workgroup_members($wg_trim);
+    }
+    $wg_members = variable_get('se3_workgroup_members',array());
+    if ($reset_set) {
+      $wg_members[$wg_set] = array();
+    }
+    if (!empty($wg_updates)) {
+      foreach ($wg_updates as $wg => $wg_peeps) {
+        $wg_members[$wg_set][$wg] = array();
+        if (!empty($wg_peeps)) {
+          $wg_members[$wg_set][$wg] = $wg_peeps;
+        }
+      }
+    }
+    variable_set('se3_workgroup_members',$wg_members);
+  }
 }
 
 function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $key_file = NULL)
@@ -1707,4 +1805,17 @@ function _ses_custom_mail_error_report($errors, $source) {
     $subject = 'Drupal Errors encountered with ' . $source;
     $params = array('body' => $errors, 'subject' => $subject);
     drupal_mail('ses_custom', 'ses_custom_'.$source, $mail_list, language_default(), $params);
+}
+
+function ses_custom_cron() {
+  $subject = 'Cron Workgroup Updates';
+  if (date('G') == 1) {
+    _ses_custom_store_regular_workgroups();
+    $params = array('body' => array('updated regular workgroup members via cron'), 'subject' => $subject);
+    drupal_mail('ses_custom', 'ses_custom_update_regular', 'ksharp@stanford.edu', language_default(), $params);
+  } else if (date('G') == 2) {
+    _ses_custom_store_research_workgroups();
+    $params = array('body' => array('updated research workgroup members via cron'), 'subject' => $subject);
+    drupal_mail('ses_custom', 'ses_custom_update_regular', 'ksharp@stanford.edu', language_default(), $params);
+  }
 }
