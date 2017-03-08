@@ -1536,6 +1536,7 @@ function ses_custom_add_sunet_user_form_submit($form, &$form_state)
         $ptype = 'staff';
     }
     $workgroup = 'earthsci:' . $affil . '-' . $ptype;
+    _ses_custom_store_workgroup_members('regular', array($workgroup));
     $sunet = $form_state['values']['user_list'];
 
     if (!ses_custom_ses_cap_lite_preprocess_all($sunet)) {
