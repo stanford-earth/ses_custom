@@ -3,6 +3,12 @@
 $ses_custom_errors = array();
 
 function ses_custom_init() {
+    global $user;
+    if (drupal_is_cli()) return;
+    if ($_SERVER['SCRIPT_NAME'] == '/index.php' && 
+      current_path() == 'node/40932' && $user->uid != 1) {
+      drupal_goto('https://earth.stanford.edu');
+    }
     drupal_add_js(drupal_get_path('module', 'ses_custom') . '/ses_custom_people.js');
 }
 
@@ -50,6 +56,7 @@ function ses_custom_menu()
 }
 
 function _ses_custom_update_workgroup_members($set,$workgroup) {
+
   if ($workgroup == 'all') {
     if ($set == 'regular') {
       _ses_custom_store_regular_workgroups();
@@ -63,7 +70,7 @@ function _ses_custom_update_workgroup_members($set,$workgroup) {
       _ses_custom_store_workgroup_members($set, array($workgroup));
     } else {
       die ('Unkown workgroup set.');
-    }
+   }
   }
   $wg_array = variable_get('se3_workgroup_members', array());
   print 'workgroups:<br />';
@@ -699,9 +706,10 @@ function ses_custom_ses_cap_lite_preprocess_all($sunet = NULL)
         }
         $ses_custom_uid_array[$wg_member['sunet']]['wgs'][] = $workgroup;
       }
+    } else {
+	$ses_custom_wg_members[$workgroup] = array();
     }
   }
-
 /*
     $wg_text = trim(variable_get('ses_cap_lite_workgroups', ''));
     $wg_array = array();
@@ -1224,6 +1232,7 @@ function _ses_custom_store_workgroup_members($wg_set = '', $wg_array = array(), 
     foreach ($wg_array as $wg) {
       $wg_trim = trim($wg);
       $wg_updates[$wg_trim] = _ses_custom_get_workgroup_members($wg_trim);
+      print $wg_trim.'<pre>'; print_r($wg_updates[$wg_trim]);print '</pre><br /><br />';
     }
     $wg_members = variable_get('se3_workgroup_members',array());
     if ($reset_set) {
@@ -1246,10 +1255,19 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
 
     global $ses_custom_errors;
 
-    $url = "https://sesincub.stanford.edu/mais/workgroup_api_proxy.php?workgroup=" . $workgroup_name;
+    // create the URL to access the workgroup, from variables set in settings.php
+    // $ses_mais_uat is true if we are working against the MAIS test system
+    global $ses_mais_key_path;
+    global $ses_mais_crt_path;
+    if (empty($cert_file)) $cert_file = $ses_mais_crt_path;
+    if (empty($key_file)) $key_file = $ses_mais_key_path;
+    global $ses_mais_uat;
+    $mais_host = 'workgroupsvc';
+    if ($ses_mais_uat) $mais_host .= '-uat';
+    $url = "https://" . $mais_host . ".stanford.edu/v1/workgroups/" . $workgroup_name;
+//    $url = "https://sesincub.stanford.edu/mais/workgroup_api_proxy.php?workgroup=" . $workgroup_name;
     // create a curl session to get the workgroup data
     $ch = curl_init();
-
     $options = array(
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => false,
@@ -1257,8 +1275,8 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_USERAGENT => 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)',
         CURLOPT_URL => $url,
-        //CURLOPT_SSLCERT => $cert_file,
-        //CURLOPT_SSLKEY => $key_file,
+        CURLOPT_SSLCERT => $cert_file,
+        CURLOPT_SSLKEY => $key_file,
         CURLOPT_FORBID_REUSE => true, 
         CURLOPT_FRESH_CONNECT => true, 
     );
@@ -1271,11 +1289,60 @@ function _ses_custom_get_workgroup_members($workgroup_name, $cert_file = NULL, $
         watchdog('ses_custom', $curl_error.' ' . $url);
         $ses_custom_errors[] = 'Curl error in call to _ses_custom_get_workgroup_members for ' . $url . ': ' . $curl_error;
         $members = false;
+        curl_close($ch);
     } else {
-        $members = drupal_json_decode($output);
+        curl_close($ch);
+        //$members['span_'.$workgroup_name] = $span_time;
+        // if we have output, parse it and create an array to return
+        // parse the xml
+        $p = xml_parser_create();
+        $vals = array();
+        $index = array();
+        xml_parse_into_struct($p, $output, $vals, $index);
+        xml_parser_free($p);
+
+        // for each person in the workgroup, get their SUNet ID, directory name, and display name
+
+        // don't include workgroup administrators in our return array
+        if (isset($index['ADMINISTRATORS']) && is_array($index['ADMINISTRATORS'])) {
+            $first_admin = $index['ADMINISTRATORS'][0];
+        } else {
+            $first_admin = 10000;
+        }
+        // check list for members
+        if (!empty($index['MEMBER']) && count($index['MEMBER']) > 0) {
+            foreach ($index['MEMBER'] as $key) {
+                if ($key < $first_admin) {
+                    $sunet = $vals[$key]['attributes']['ID'];
+                    $directory_name = $vals[$key]['attributes']['NAME'];
+                    $comma = strpos($directory_name, ',');
+                    if ($comma === FALSE) {
+                        $account_name = $directory_name;
+                    } else {
+                        $account_name = substr($directory_name, $comma + 2) . ' ' . substr($directory_name, 0, $comma);
+                    }
+                    $members[$sunet] = array('sunet' => $sunet, 'directory_name' => $directory_name, 'account_name' => $account_name);
+                }
+            }
+        }
+
+        // recursively return members of nested workgroups
+        if (!empty($index['WORKGROUP']) && count($index['WORKGROUP']) > 0) {
+            foreach ($index['WORKGROUP'] as $key) {
+                if ($key < $first_admin && isset($vals[$key]['attributes']['NAME'])) {
+                    $next_members = _ses_custom_get_workgroup_members($vals[$key]['attributes']['NAME'],$cert_file, $key_file);
+                    if ($next_members === FALSE) {
+                        return FALSE;
+                    } else {
+                        $members = array_merge($members, $next_members);
+                    }
+                }
+            }
+        }
+        //$members = drupal_json_decode($output);
         watchdog('ses_custom','workgroup '.$workgroup_name.' count: '.count($members));
     }
-    curl_close($ch);
+    //curl_close($ch);
     // return our list of people from the workgroup
     return $members;
 
@@ -1285,6 +1352,7 @@ function _ses_custom_get_ldap_contact($sunet, $search_by = 'uid')
 {
     global $ses_custom_errors;
 
+    //watchdog('debug','ldap lookup '.$sunet.' search_by: '.$search_by);
     $ldapError = '';
     $ldapok = FALSE;
     $result_out = array();
@@ -1641,6 +1709,21 @@ function ses_custom_query_alter(QueryAlterableInterface $query)
 
 function ses_custom_views_pre_render(&$view)
 {
+    // remove duplicate user accounts from people views
+    if ($view->name == 'people' && isset($view->result) && is_array($view->result)
+        && isset($view->result[0]) && is_object($view->result[0]) && isset($view->result[0]->uid)) {
+        $current_uid = 0;
+        foreach ($view->result as $key => $user_account) {
+            if (isset($user_account->uid) && intval($user_account->uid) > 0) {
+                if (intval($user_account->uid) == $current_uid) {
+                    unset($view->result[$key]);
+                } else {
+                    $current_uid = intval($user_account->uid);
+                }
+            }
+        }
+    }
+    
     // before we render the events view, weed out any duplicates
     // duplicates arise because the stanford event content type contains events from many different
     // events feeds, and some events are bookmarked from other feeds.
@@ -1775,6 +1858,7 @@ function ses_custom_stanford_r25_contact_alter(&$contact) {
             if ($email !== false) {
                 // check if we already found it. if not do an ldap lookup
                 if (empty($contact_array[$email])) {
+		    //watchdog('debug','ldap lookup for '.$email);
                     $ldap_info = _ses_custom_get_ldap_contact($email, 'mail');
                     if (empty($ldap_info['field_cap_primary_phone'][0])) {
                         $contact_array[$email] = 'n/a';
@@ -1818,5 +1902,16 @@ function ses_custom_cron() {
     _ses_custom_store_research_workgroups();
     $params = array('body' => array('updated research workgroup members via cron'), 'subject' => $subject);
     drupal_mail('ses_custom', 'ses_custom_update_regular', 'ksharp@stanford.edu', language_default(), $params);
+  }
+}
+
+function ses_custom_redirect_delete($redirect) {
+  $xyz = print_r($redirect,true);
+  watchdog('ses_custom','system deleting redirect: <pre>'.$xyz.'</pre>');
+}
+
+function ses_custom_user_view($account, $view_mode, $langcode) {
+  if ($account->uid == 4147) {
+    drupal_goto('/');
   }
 }
